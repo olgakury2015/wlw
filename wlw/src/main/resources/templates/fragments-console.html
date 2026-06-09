@@ -1,0 +1,105 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<aside th:fragment="sidebar" class="c-sidebar">
+    <button type="button" class="c-sidebar__toggle" id="sidebarToggle" title="展开 / 收起侧栏" aria-label="展开或收起侧栏">⟨⟩</button>
+    <div class="c-sidebar__brand"><span class="c-sidebar__brand-mark"></span><span class="c-sidebar__brand-text">盖斯特控制台</span></div>
+    <p class="c-sidebar__tagline">接入 · 时序 · 告警一体</p>
+    <nav class="c-sidebar__nav">
+        <details class="c-nav-group" data-group="home" open>
+            <summary class="c-nav-summary">总览</summary>
+            <a th:href="@{/}" th:classappend="${active == 'home'} ? 'is-active'"><span class="c-nav-ico">⌂</span><span class="c-nav-txt">工作台</span></a>
+        </details>
+
+        <details class="c-nav-group" data-group="device" open>
+            <summary class="c-nav-summary">设备管理</summary>
+            <a th:href="@{/devices}" th:classappend="${active == 'devices'} ? 'is-active'"><span class="c-nav-ico">▣</span><span class="c-nav-txt">设备列表</span></a>
+            <a th:href="@{/device-categories}" th:classappend="${active == 'device-categories'} ? 'is-active'"><span class="c-nav-ico">▤</span><span class="c-nav-txt">设备分类</span></a>
+        </details>
+
+        <details class="c-nav-group" data-group="data" open>
+            <summary class="c-nav-summary">数据中心</summary>
+            <a th:href="@{/data/receive}" th:classappend="${active == 'data-receive'} ? 'is-active'"><span class="c-nav-ico">⇄</span><span class="c-nav-txt">数据接收与解析</span></a>
+            <a th:href="@{/data/history}" th:classappend="${active == 'data-history'} ? 'is-active'"><span class="c-nav-ico">≋</span><span class="c-nav-txt">时序查询与导出</span></a>
+            <a th:href="@{/protocols}" th:classappend="${active == 'protocols'} ? 'is-active'"><span class="c-nav-ico">◎</span><span class="c-nav-txt">协议接入</span></a>
+        </details>
+
+        <details class="c-nav-group" data-group="monitor" open>
+            <summary class="c-nav-summary">监控与告警</summary>
+            <a th:href="@{/viz}" th:classappend="${active == 'viz'} ? 'is-active'"><span class="c-nav-ico">▥</span><span class="c-nav-txt">可视化仪表板</span></a>
+            <a th:href="@{/video}" th:classappend="${active == 'video-center'} ? 'is-active'"><span class="c-nav-ico">▶</span><span class="c-nav-txt">视频中心</span></a>
+            <a th:href="@{/video/channels}" sec:authorize="hasRole('ADMIN')" th:classappend="${active == 'video-channels' || active == 'video-channel-edit'} ? 'is-active'"><span class="c-nav-ico">▹</span><span class="c-nav-txt">视频通道配置</span></a>
+            <a th:href="@{/video/gb28181}" sec:authorize="hasRole('ADMIN')" th:classappend="${active == 'video-gb28181'} ? 'is-active'"><span class="c-nav-ico">◎</span><span class="c-nav-txt">国标 28181</span></a>
+            <a th:href="@{/alerts/rules}" th:classappend="${active == 'alert-rules'} ? 'is-active'"><span class="c-nav-ico">!</span><span class="c-nav-txt">告警规则</span></a>
+            <a th:href="@{/alerts/notify}" th:classappend="${active == 'alert-notify'} ? 'is-active'"><span class="c-nav-ico">✉</span><span class="c-nav-txt">告警通知</span></a>
+            <a th:href="@{/rules}" th:classappend="${active == 'rules'} ? 'is-active'"><span class="c-nav-ico">¶</span><span class="c-nav-txt">联动说明</span></a>
+            <a th:href="@{/scenes/linkage}" th:classappend="${active == 'scene-linkage'} ? 'is-active'"><span class="c-nav-ico">⚡</span><span class="c-nav-txt">场景联动（执行）</span></a>
+        </details>
+
+        <details class="c-nav-group" data-group="acl" open>
+            <summary class="c-nav-summary">用户与权限</summary>
+            <a th:href="@{/admin/accounts}" sec:authorize="hasRole('ADMIN')" th:classappend="${active == 'admin-accounts'} ? 'is-active'"><span class="c-nav-ico">👤</span><span class="c-nav-txt">账号管理</span></a>
+        </details>
+
+        <details class="c-nav-group" data-group="ops" open>
+            <summary class="c-nav-summary">运维与安全</summary>
+            <a th:href="@{/ops/audit-logs}" th:classappend="${active == 'ops-audit'} ? 'is-active'"><span class="c-nav-ico">📋</span><span class="c-nav-txt">操作日志</span></a>
+            <a th:href="@{/ops/api-doc}" th:classappend="${active == 'ops-api-doc'} ? 'is-active'"><span class="c-nav-ico">{}</span><span class="c-nav-txt">API 开放说明</span></a>
+            <a th:href="@{/ops/api-keys}" sec:authorize="hasRole('ADMIN')" th:classappend="${active == 'ops-api-keys'} ? 'is-active'"><span class="c-nav-ico">🔑</span><span class="c-nav-txt">API 密钥</span></a>
+        </details>
+
+        <div class="c-sidebar__sep"></div>
+        <details class="c-nav-group" data-group="tools" open>
+            <summary class="c-nav-summary">工具</summary>
+            <a th:href="@{/nodered}" th:classappend="${active == 'nodered'} ? 'is-active'"><span class="c-nav-ico">NR</span><span class="c-nav-txt">Node-RED</span></a>
+            <a th:href="@{/api/v1/health}" target="_blank" rel="noreferrer"><span class="c-nav-ico">✓</span><span class="c-nav-txt">健康检查</span></a>
+        </details>
+    </nav>
+</aside>
+
+<header th:fragment="topbar" class="c-topbar">
+    <div class="c-topbar__crumb" th:text="${breadcrumb}">首页</div>
+    <div class="c-topbar__right">
+        <span class="c-topbar__date" th:text="${todayDisplay}">日期</span>
+        <span sec:authorize="isAuthenticated()" class="c-topbar__user" sec:authentication="name">user</span>
+        <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" class="c-topbar__logout">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" class="c-btn" style="padding:6px 12px;font-size:12px">退出</button>
+        </form>
+    </div>
+</header>
+
+<th:block th:fragment="layout-scripts">
+<script>
+    (function () {
+        var btn = document.getElementById('sidebarToggle');
+        var side = document.querySelector('.c-sidebar');
+        if (btn && side) {
+            btn.addEventListener('click', function () {
+                side.classList.toggle('is-collapsed');
+                try {
+                    localStorage.setItem('sidebarCollapsed', side.classList.contains('is-collapsed') ? 'true' : 'false');
+                } catch (e) {}
+            });
+            try {
+                if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                    side.classList.add('is-collapsed');
+                }
+            } catch (e) {}
+        }
+        document.querySelectorAll('details.c-nav-group').forEach(function (d) {
+            var key = 'navGroup_' + d.dataset.group;
+            try {
+                var v = localStorage.getItem(key);
+                if (v === '0') { d.open = false; }
+                else if (v === '1') { d.open = true; }
+            } catch (e) {}
+            d.addEventListener('toggle', function () {
+                try { localStorage.setItem(key, d.open ? '1' : '0'); } catch (e) {}
+            });
+        });
+    })();
+</script>
+</th:block>
+</body>
+</html>

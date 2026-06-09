@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+
+    <meta charset="UTF-8"/>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+    <title>编辑视频通道 · 盖斯特控制台</title>
+
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+
+</head>
+
+<body class="console-body">
+
+<div class="c-app">
+
+    <aside th:replace="fragments-console :: sidebar"></aside>
+
+    <div class="c-main">
+
+        <header th:replace="fragments-console :: topbar"></header>
+
+        <div class="c-content">
+
+            <div class="c-page-head">
+
+                <h1 class="c-title">编辑视频通道</h1>
+
+                <p class="c-sub"><a th:href="@{/video/channels}">← 返回列表</a> · <a th:href="@{/video}">视频中心</a> · <a th:href="@{/video/gb28181}">国标配置</a></p>
+
+            </div>
+
+
+
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+
+
+            <div class="c-card">
+
+                <form class="c-form-row" style="flex-direction:column;align-items:stretch;gap:10px" method="post" th:action="@{/video/channels/{id}/update(id=${ch.id})}">
+
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+                    <label>名称 <input type="text" name="name" required th:value="${ch.name}"/></label>
+
+                    <label>接入方式
+
+                        <select name="sourceType" id="sourceTypeEdit" style="max-width:200px">
+
+                            <option value="RTSP" th:selected="${ch.sourceType == null or ch.sourceType == 'RTSP'}">RTSP 直连</option>
+
+                            <option value="ONVIF" th:selected="${ch.sourceType == 'ONVIF'}">ONVIF 解析</option>
+
+                            <option value="GB28181" th:selected="${ch.sourceType == 'GB28181'}">GB/T 28181</option>
+
+                        </select>
+
+                    </label>
+
+                    <div id="gb28181FieldsEdit">
+
+                        <label>国标设备编码
+
+                            <input type="text" name="gb28181DeviceId" th:value="${ch.gb28181DeviceId}" placeholder="34020000001320000001"/>
+
+                        </label>
+
+                        <label>国标通道编码（必填，与海康「视频通道编码 ID」一致）
+
+                            <input type="text" name="gb28181ChannelId" th:value="${ch.gb28181ChannelId}"
+                                   placeholder="34020000001320000003"/>
+
+                        </label>
+
+                        <label>国标 SIP 密码（明文，与摄像机 SIP 密码对照）
+
+                            <input type="text" name="gb28181Password" autocomplete="off"
+                                   th:value="${ch.gb28181Password}" placeholder="留空则使用下方「实际校验密码」"/>
+
+                        </label>
+
+                        <p class="c-muted" style="font-size:12px;margin:0" th:if="${ch.sourceType == 'GB28181'}">
+                            平台默认密码：
+                            <code th:text="${#strings.isEmpty(platformGbPassword)} ? '（未设置）' : ${platformGbPassword}">-</code><br/>
+                            本设备注册校验实际使用：
+                            <strong th:text="${gb28181EffectivePassword != null and !#strings.isEmpty(gb28181EffectivePassword)} ? ${gb28181EffectivePassword} : '（未设置，注册将失败）'">-</strong>
+                            <span th:if="${ch.gb28181Password != null and !#strings.isEmpty(ch.gb28181Password)}">（本通道已覆盖平台默认）</span>
+                        </p>
+
+                        <label class="c-form-row" style="gap:8px;align-items:center;font-size:13px">
+
+                            <input type="checkbox" name="clearGb28181Password" value="true"/> 清空该通道已存国标密码
+
+                        </label>
+
+                        <label>码流索引
+
+                            <select name="gb28181StreamIndex" style="max-width:200px">
+
+                                <option value="0" th:selected="${ch.gb28181StreamIndex == null or ch.gb28181StreamIndex == 0}">0 — 主码流</option>
+
+                                <option value="1" th:selected="${ch.gb28181StreamIndex == 1}">1 — 子码流</option>
+
+                            </select>
+
+                        </label>
+
+                    </div>
+
+                    <label>RTSP 地址
+
+                        <input type="text" name="rtspUrl" th:value="${ch.rtspUrl}" placeholder="rtsp://..."/>
+
+                    </label>
+
+                    <label>ONVIF 设备服务 URL
+
+                        <input type="text" name="onvifDeviceServiceUrl" th:value="${ch.onvifDeviceServiceUrl}"/>
+
+                    </label>
+
+                    <label>ONVIF 用户名 <input type="text" name="onvifUsername" th:value="${ch.onvifUsername}"/></label>
+
+                    <label>ONVIF 密码
+
+                        <input type="password" name="onvifPassword" placeholder="留空则不修改已存密码"/>
+
+                    </label>
+
+                    <label>排序 <input type="number" name="sortOrder" th:value="${ch.sortOrder}"/></label>
+
+                    <label class="c-form-row" style="gap:8px;align-items:center">
+
+                        <input type="checkbox" name="enabled" value="true" th:checked="${ch.enabled}"/> 启用
+
+                    </label>
+
+                    <label>备注 <textarea name="remark" rows="2" style="width:100%" th:text="${ch.remark}"></textarea></label>
+
+                    <div class="c-form-row" style="gap:10px">
+
+                        <button type="submit" class="c-btn c-btn--primary">保存</button>
+
+                        <a class="c-btn c-btn--ghost" th:href="@{/video/channels}">取消</a>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script th:replace="fragments-console :: layout-scripts"></script>
+
+<script>
+
+(function () {
+
+    var s = document.getElementById('sourceTypeEdit');
+
+    var b = document.getElementById('gb28181FieldsEdit');
+
+    if (!s || !b) return;
+
+    function toggle() { b.style.display = s.value === 'GB28181' ? 'block' : 'none'; }
+
+    s.addEventListener('change', toggle);
+
+    toggle();
+
+})();
+
+</script>
+
+</body>
+
+</html>
+

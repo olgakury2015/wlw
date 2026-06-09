@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>国标 GB/T 28181 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">GB/T 28181 平台接入</h1>
+                <p class="c-sub">
+                    <strong>平台参数</strong>在本页配置并保存到数据库（所有摄像机共用）；
+                    <strong>每路摄像机</strong>在 <a th:href="@{/video/channels}">视频通道配置</a> 中单独添加（设备编码、可选独立密码）。
+                </p>
+            </div>
+
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div th:if="${!sipRunning}" class="c-alert c-alert--err" style="margin-bottom:12px">
+                <strong>SIP 服务未启动（摄像机必然「不在线」）。</strong>
+                media-host 填本机 IPv4（如 192.168.0.113），勾选启用后点保存。
+                <span th:if="${sipLastStartupError != null and !#strings.isEmpty(sipLastStartupError)}">
+                    最近失败原因：<code th:text="${sipLastStartupError}">-</code>
+                </span>
+                启动日志中搜索 <code>GB/T 28181 SIP 启动失败</code>；若提示端口占用，执行
+                <code>netstat -ano | findstr :5060</code> 结束旧 Java 进程后重启。
+            </div>
+            <div th:if="${sipRunning and #lists.isEmpty(devices)}" class="c-alert c-alert--err" style="margin-bottom:12px">
+                <strong>尚未收到任何设备注册。</strong> 本页诊断：已收到 REGISTER 次数 <strong th:text="${registerReceivedCount}">0</strong>；
+                SIP 绑定 <code th:text="${sipListenHost}">-</code>:<code th:text="${cfg.port}">5060</code>。
+                若为 0，说明 UDP 报文未进 Java（与密码无关），请：
+                ① 摄像机「SIP服务器地址」=<code th:text="${mediaHostEffective}">-</code>；
+                ② Windows 防火墙入站放行 UDP/TCP 5060（管理员 PowerShell）：
+                <code style="display:block;margin:6px 0;font-size:11px">New-NetFirewallRule -DisplayName "WLW-GB28181-SIP-UDP" -Direction Inbound -Protocol UDP -LocalPort 5060 -Action Allow; New-NetFirewallRule -DisplayName "WLW-GB28181-SIP-TCP" -Direction Inbound -Protocol TCP -LocalPort 5060 -Action Allow</code>
+                ③ 海康「传输协议」须与平台一致（本机 UDP=<span th:text="${sipUdpListening}">-</span> TCP=<span th:text="${sipTcpListening}">-</span>）。
+                ④ 保存摄像机配置后等 1 分钟；日志应出现 <code>GB28181 SIP 入站 method=REGISTER</code>。
+            </div>
+
+            <div class="c-card" style="margin-bottom:16px" th:if="${sipRunning}">
+                <h2 class="c-card__title">运行诊断</h2>
+                <table class="c-table">
+                    <tbody>
+                    <tr><td>SIP 服务</td><td>运行中</td></tr>
+                    <tr><td>本机 IPv4</td><td><code th:text="${#strings.listJoin(localIpv4List, ', ')}">-</code></td></tr>
+                    <tr><td>media-host 在网卡上</td><td th:text="${mediaHostOnLocalNic} ? '是' : '否（须改成本机 IP）'">-</td></tr>
+                    <tr><td>SIP 绑定</td><td><code th:text="${sipListenHost}">-</code>:<span th:text="${cfg.port}">5060</span>
+                        UDP <span th:text="${sipUdpListening} ? '开' : '关'">-</span> /
+                        TCP <span th:text="${sipTcpListening} ? '开' : '关'">-</span>
+                        <span class="c-muted" th:if="${sipListenHost == '0.0.0.0'}">（所有网卡）</span></td></tr>
+                    <tr><td>收到 REGISTER 次数</td><td th:text="${registerReceivedCount}">0</td></tr>
+                    <tr><td>最近一次 REGISTER</td><td th:text="${lastRegisterAt != null} ? ${lastRegisterAt} : '—'">—</td></tr>
+                    <tr><td>已注册设备数</td><td th:text="${#lists.size(devices)}">0</td></tr>
+                    <tr th:if="${gb28181UseZlm}"><td>ZLM 收流 IP（sdp-ip）</td><td><code th:text="${zlmSdpIpEffective}">-</code>（与 media-host 同步，网页保存即生效）</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="c-card" style="margin-bottom:16px">
+                <h2 class="c-card__title">平台 SIP 配置（保存到数据库）</h2>
+                <form class="c-form-row" style="flex-direction:column;align-items:stretch;gap:10px;max-width:640px"
+                      method="post" th:action="@{/video/gb28181/save}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <label class="c-form-row" style="gap:8px;align-items:center">
+                        <input type="checkbox" name="enabled" value="true" th:checked="${cfg.enabled}"/> 启用国标 SIP 服务
+                    </label>
+                    <label>平台 SIP 服务器 ID（20 位）
+                        <input type="text" name="sipId" required th:value="${cfg.sipId}" placeholder="34020000002000000001"/>
+                    </label>
+                    <label>SIP 服务器域
+                        <input type="text" name="sipDomain" required th:value="${cfg.sipDomain}" placeholder="3402000000"/>
+                    </label>
+                    <label>SIP 监听地址（可填 <code>0.0.0.0</code>；实际会优先绑定下方 media-host 对应网卡，便于 Windows 收 REGISTER）
+                        <input type="text" name="host" required th:value="${cfg.host}" placeholder="0.0.0.0"/>
+                    </label>
+                    <label>SIP 端口
+                        <input type="number" name="port" required th:value="${cfg.port}" min="1" max="65535"/>
+                    </label>
+                    <label>媒体地址 media-host / ZLM sdp-ip（必填：本机 IPv4，保存即生效，无需改 application.yml）
+                        <input type="text" name="mediaHost" required th:value="${cfg.mediaHost}" placeholder="192.168.0.119"
+                               pattern="^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$"
+                               title="与摄像机「SIP 服务器地址」相同；国标 SIP、ZLM 收流、RTSP 预览均用此 IP"/>
+                    </label>
+                    <p class="c-muted" style="font-size:12px;margin:0">
+                        当前生效 IP：<strong th:text="${mediaHostEffective}">-</strong>
+                        <span th:if="${gb28181UseZlm}">；ZLM 收流/预览：<strong th:text="${zlmSdpIpEffective}">-</strong></span>
+                        （保存后下次点播立即使用，不必重启 wlw）
+                    </p>
+                    <label>默认设备注册密码（明文显示，须与摄像机 Web「密码」完全一致）
+                        <input type="text" name="devicePassword" autocomplete="off"
+                               th:value="${cfg.devicePassword}" placeholder="例如与摄像机 SIP 密码相同"/>
+                    </label>
+                    <p class="c-muted" style="font-size:12px;margin:0">留空并保存且未勾选「清空」时不修改已存密码；修改后请保存并等待摄像机重新注册。</p>
+                    <label class="c-form-row" style="gap:8px;align-items:center;font-size:13px">
+                        <input type="checkbox" name="clearDevicePassword" value="true"/> 清空已存默认密码
+                    </label>
+                    <div class="c-form-row" style="gap:12px;flex-wrap:wrap">
+                        <label>RTP 端口池起
+                            <input type="number" name="mediaPortMin" th:value="${cfg.mediaPortMin}" min="1024" max="65535" style="width:120px"/>
+                        </label>
+                        <label>止
+                            <input type="number" name="mediaPortMax" th:value="${cfg.mediaPortMax}" min="1024" max="65535" style="width:120px"/>
+                        </label>
+                    </div>
+                    <label>注册有效期（秒）
+                        <input type="number" name="registerExpires" th:value="${cfg.registerExpires}" min="60"/>
+                    </label>
+                    <label>心跳超时判离线（秒）
+                        <input type="number" name="keepaliveTimeoutSeconds" th:value="${cfg.keepaliveTimeoutSeconds}" min="30"/>
+                    </label>
+                    <label>媒体传输（须与海康国标页「传输协议」一致）
+                        <select name="mediaTransport" style="width:100%;max-width:320px">
+                            <option value="tcp_passive" th:selected="${cfg.mediaTransport == null or cfg.mediaTransport == 'tcp_passive' or cfg.mediaTransport == 'TCP_PASSIVE'}">TCP 被动（推荐，海康选 TCP）</option>
+                            <option value="udp" th:selected="${cfg.mediaTransport == 'udp' or cfg.mediaTransport == 'UDP'}">UDP</option>
+                        </select>
+                    </label>
+                    <p class="c-muted" style="font-size:12px;margin:0">TCP 被动：平台监听端口池，摄像机主动连入推 PS；防火墙需放行 TCP 端口池入站。</p>
+                    <label class="c-form-row" style="gap:8px;align-items:center;font-size:13px" title="海康常见仅发 MESSAGE 心跳、不发 REGISTER；取消勾选后可凭心跳点播">
+                        <input type="checkbox" name="requireSipRegister" value="true" th:checked="${cfg.requireSipRegister}"/>
+                        必须完成 SIP REGISTER 后才允许点播（标准模式；海康仅心跳时请<strong>不要</strong>勾选）
+                    </label>
+                    <label>备注
+                        <textarea name="remark" rows="2" style="width:100%" th:text="${cfg.remark}"></textarea>
+                    </label>
+                    <p class="c-muted" style="font-size:12px;margin:0">
+                        SIP 服务状态：<strong th:text="${sipRunning} ? '运行中' : '未启动'">-</strong>（保存后自动按本页配置重启）
+                    </p>
+                    <button type="submit" class="c-btn c-btn--primary" style="align-self:flex-start">保存平台配置</button>
+                </form>
+            </div>
+
+            <div class="c-card" style="margin-bottom:16px">
+                <h2 class="c-card__title">摄像机 Web 端填写对照</h2>
+                <table class="c-table">
+                    <thead><tr><th>摄像机项</th><th>填本平台</th></tr></thead>
+                    <tbody>
+                    <tr><td>SIP 服务器 ID</td><td th:text="${cfg.sipId}">-</td></tr>
+                    <tr><td>SIP 服务器域</td><td th:text="${cfg.sipDomain}">-</td></tr>
+                    <tr><td>SIP 服务器地址</td><td th:text="${mediaHostEffective}">-</td></tr>
+                    <tr><td>SIP 服务器端口</td><td th:text="${cfg.port}">5060</td></tr>
+                    <tr><td>传输协议</td><td>海康选 <strong>TCP</strong> ↔ 本平台选 <strong>TCP 被动</strong>；海康选 UDP ↔ 本平台 UDP</td></tr>
+                    <tr><td>SIP 用户名</td><td>各摄像机 20 位设备编码（在「视频通道」配置）</td></tr>
+                    <tr><td>密码</td><td>
+                        <span th:if="${#strings.isEmpty(cfg.devicePassword)}" class="c-muted">平台默认未设置（请在上方填写或在通道单独配置）</span>
+                        <code th:if="${!#strings.isEmpty(cfg.devicePassword)}" th:text="${cfg.devicePassword}">-</code>
+                    </td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">已注册设备（运行时）</h2>
+                <div th:if="${#lists.isEmpty(devices)}" class="c-muted">暂无注册。保存并启用平台配置后，待摄像机上线。</div>
+                <table class="c-table" th:if="${!#lists.isEmpty(devices)}">
+                    <thead>
+                    <tr><th>设备编码</th><th>在线</th><th>SIP 注册</th><th>Contact</th><th>最近心跳</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="d : ${devices}">
+                        <td th:text="${d.deviceId}">-</td>
+                        <td th:text="${d.online} ? '是' : '否'">否</td>
+                        <td th:text="${d.sipRegistered} ? 'REGISTER' : '仅心跳'">—</td>
+                        <td style="font-size:12px" th:text="${d.contactHost != null} ? (${d.contactHost} + ':' + ${d.contactPort}) : '—'">—</td>
+                        <td style="font-size:12px" th:text="${d.lastKeepaliveAt}">—</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:replace="fragments-console :: layout-scripts"></script>
+</body>
+</html>

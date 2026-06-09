@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>修改网关 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <p class="c-muted"><a th:href="@{/gateways/{id}(id=${gateway.id})}">← 返回网关详情</a></p>
+            <h1 class="c-title">修改网关</h1>
+            <div class="c-card">
+                <form method="post" th:action="@{/gateways/{id}/update(id=${gateway.id})}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <div th:replace="fragments-gateway-form :: gatewayFields(${gateway})"></div>
+                    <div class="c-form-actions">
+                        <button type="submit" class="c-btn c-btn--primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/gateway-form.js}"></script>
+<script>if (window.WlwGatewayForm) { window.WlwGatewayForm.boot(); }</script>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

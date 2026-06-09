@@ -1,0 +1,71 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>物模型 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <h1 class="c-title">物模型</h1>
+            <p class="c-sub">定义设备的「数字档案」：属性（如温度）、服务（如开关）、事件（如告警）等，以 JSON 描述，便于与设备上报字段对齐。</p>
+
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div class="c-card" sec:authorize="hasRole('ADMIN')">
+                <h2 style="margin:0 0 12px;font-size:16px">新建物模型</h2>
+                <form method="post" th:action="@{/things}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <div class="c-form-row" style="margin-bottom:10px">
+                        <label>标识 code *
+                            <input type="text" name="code" required placeholder="例如：sensor-th-v1"/>
+                        </label>
+                        <label>名称 *
+                            <input type="text" name="name" required placeholder="例如：温湿度传感器"/>
+                        </label>
+                    </div>
+                    <label style="display:block;margin-bottom:8px;font-size:12px;color:var(--muted)">说明
+                        <input type="text" name="description" style="width:100%;max-width:560px" placeholder="可选"/>
+                    </label>
+                    <label style="display:block;font-size:12px;color:var(--muted)">功能定义 JSON
+                        <textarea name="propertiesJson" style="width:100%;max-width:720px" th:inline="text">[[${defaultJson}]]</textarea>
+                    </label>
+                    <button type="submit" class="c-btn c-btn--primary" style="margin-top:10px">保存物模型</button>
+                </form>
+            </div>
+            <p sec:authorize="!hasRole('ADMIN')" class="c-muted">只读用户可查看列表，不可编辑物模型。</p>
+
+            <div class="c-card">
+                <h2 style="margin:0 0 12px;font-size:16px">已定义列表</h2>
+                <table class="c-table" th:if="${!#lists.isEmpty(models)}">
+                    <thead>
+                    <tr><th>标识</th><th>名称</th><th>创建时间</th><th sec:authorize="hasRole('ADMIN')"></th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="m : ${models}">
+                        <td th:text="${m.code}">code</td>
+                        <td th:text="${m.name}">name</td>
+                        <td th:text="${m.createdAt}">-</td>
+                        <td sec:authorize="hasRole('ADMIN')">
+                            <form th:action="@{/things/delete/{id}(id=${m.id})}" method="post" onsubmit="return confirm('删除该物模型？');" style="display:inline">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="c-btn" style="padding:4px 10px;font-size:12px">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${#lists.isEmpty(models)}" class="c-muted">暂无物模型。</p>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

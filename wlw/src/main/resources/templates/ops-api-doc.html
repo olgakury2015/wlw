@@ -1,0 +1,63 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>API 开放说明 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">HTTP API 说明</h1>
+                <p class="c-sub">以下为平台对外常用接口摘要。基础路径与端口以当前部署为准（本页相对路径以站点根为前缀）。</p>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">健康检查</h2>
+                <p class="c-muted" style="margin:0 0 8px"><code>GET /api/v1/health</code> — 无需认证，供负载均衡或外部探活。</p>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">设备遥测上报</h2>
+                <p class="c-muted" style="margin:0 0 8px"><code>POST /api/v1/telemetry</code> — <code>Content-Type: application/json</code>，无需浏览器会话。</p>
+                <pre class="c-code" style="margin:0">{
+  "deviceId": "与平台设备编号一致",
+  "protocol": "HTTP",
+  "payload": { "temp": 25.5, "hum": 60 }
+}</pre>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">最近遥测查询（API 密钥）</h2>
+                <p class="c-muted" style="margin:0 0 8px">
+                    <code>GET /api/v1/telemetry/recent</code> — 请求头增加 <code>X-Api-Key: &lt;明文&gt;</code>。
+                    密钥在「运维与安全 → API 密钥」由管理员创建；服务端仅存 SHA-256，请自行保管明文。
+                </p>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">控制台会话（Cookie）</h2>
+                <p class="c-muted" style="margin:0">
+                    管理类接口（如创建设备、导出部分能力）需在浏览器登录后携带会话 Cookie，且需 <strong>ADMIN</strong> 角色。
+                    只读用户 <strong>USER</strong> 可查看设备、数据与仪表板等，不可改配置。
+                </p>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">数据中心导出（登录后）</h2>
+                <p class="c-muted" style="margin:0 0 8px">
+                    在「数据中心 → 时序查询与导出」中按设备与时间筛选后，可下载 <code>GET /data/export.csv</code> 或
+                    <code>GET /data/export.xlsx</code>（Excel），参数：<code>deviceSn</code>、<code>from</code>、<code>to</code>（与页面 datetime-local 格式一致）。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

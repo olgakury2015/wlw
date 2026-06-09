@@ -1,0 +1,59 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>协议接入 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <h1 class="c-title">协议接入说明</h1>
+            <p class="c-sub">以下为平台侧能力摘要，具体地址与端口以 <code>application.yml</code> 为准。</p>
+
+            <div class="c-grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">HTTP</h2>
+                    <p class="c-muted" style="font-size:13px">REST JSON 写入遥测，适合网关、Node-RED HTTP Request、第三方系统回调。</p>
+                    <pre class="c-code" style="margin-top:8px">POST /api/v1/telemetry
+POST /api/v1/http/ingest</pre>
+                </div>
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">TCP（平台作服务端）</h2>
+                    <p class="c-muted" style="font-size:13px">设备或脚本作客户端连接下方地址，每行一条 UTF-8（常以 <code>\n</code> 结尾的 JSON）。字段 <code>deviceId</code> / <code>device_id</code> / <code>deviceSn</code> 与控制台「设备编号」一致时可标在线。与 <code>TCP_PULL</code>（平台主动连设备）可同时使用。</p>
+                    <pre class="c-code" style="margin-top:8px" th:text="'监听 ' + ${tcp.bindHost} + ':' + ${tcp.port} + ' (enabled=' + ${tcp.enabled} + ', sendLineAck=' + ${tcp.sendLineAck} + ')'">监听</pre>
+                </div>
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">MQTT</h2>
+                    <p class="c-muted" style="font-size:13px">平台连接 Broker 后<strong>订阅</strong>上行主题（如 <code>wlw/devices/+/telemetry</code>）接设备数据；入库后可选<strong>扇出发布</strong>到 <code>wlw/platform/telemetry/</code> + 设备编号（见 yml：<code>publish-topic-prefix</code>、<code>fanout-sub-topic-prefix</code>），便于本机脚本只订阅消费。</p>
+                    <pre class="c-code" style="margin-top:8px" th:text="'Broker(回退): ' + ${mqtt.brokerUrl} + '\n启用: ' + ${mqtt.enabled} + '\n多连接 brokers 条数: ' + ${#lists.size(mqtt.brokers)} + '\nfanout: ' + ${mqtt.fanoutEnabled}">MQTT</pre>
+                </div>
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">Modbus TCP</h2>
+                    <p class="c-muted" style="font-size:13px">读保持寄存器、输入寄存器、线圈。</p>
+                    <pre class="c-code" style="margin-top:8px">POST /api/v1/modbus/tcp/read-holding
+POST /api/v1/modbus/tcp/read-input
+POST /api/v1/modbus/tcp/read-coils</pre>
+                </div>
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">Modbus RTU / RS485</h2>
+                    <p class="c-muted" style="font-size:13px">经串口的 RTU 帧（j2mod）。启用前请确认 COM 口与接线。</p>
+                    <pre class="c-code" style="margin-top:8px" th:text="'enabled=' + ${modbusRtu.enabled} + ', port=' + ${modbusRtu.portName}">RTU</pre>
+                    <pre class="c-code" style="margin-top:8px">POST /api/v1/modbus/rtu/read-holding</pre>
+                </div>
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">默认 Modbus TCP 目标</h2>
+                    <p class="c-muted" style="font-size:13px">请求体中可覆盖 host/port/unitId。</p>
+                    <pre class="c-code" style="margin-top:8px" th:text="${modbusTcp.defaultHost} + ':' + ${modbusTcp.defaultPort} + ' unit=' + ${modbusTcp.defaultUnitId}">127.0.0.1:502</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

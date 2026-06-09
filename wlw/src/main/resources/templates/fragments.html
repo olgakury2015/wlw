@@ -1,0 +1,14 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav th:fragment="topnav (active)" class="topbar">
+    <div class="brand">WLW 物联网平台</div>
+    <div class="nav">
+        <a th:href="@{/}" th:classappend="${active == 'home' ? 'active' : ''}">总览</a>
+        <a th:href="@{/protocols}" th:classappend="${active == 'proto' ? 'active' : ''}">协议</a>
+        <a th:href="@{/nodered}" th:classappend="${active == 'nr' ? 'active' : ''}">Node-RED</a>
+        <a href="/api/v1/health" target="_blank" rel="noreferrer">健康检查</a>
+    </div>
+</nav>
+</body>
+</html>

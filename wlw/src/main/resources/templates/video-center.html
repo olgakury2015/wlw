@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>视频中心 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">视频中心</h1>
+                <p class="c-sub">
+                    通过 RTSP 拉取摄像头画面（浏览器侧为 MJPEG）。当前拉流引擎：<strong th:text="${videoDecoder}">ffmpeg</strong>
+                    （application.yml 的 <code>iot.video.decoder</code>）。vlcj 需本机安装 64 位 VLC；黑屏时看日志是否有「首帧已就绪 (VLCJ)」。
+                    支持在「视频通道配置」中维护地址；仅填写 ONVIF 时平台自动解析 RTSP。
+                    <span sec:authorize="hasRole('ADMIN')"><a th:href="@{/video/channels}">通道配置 →</a></span>
+                </p>
+            </div>
+
+            <div th:if="${#lists.isEmpty(channels)}" class="c-card">
+                <p class="c-muted">暂无已启用的视频通道。请由管理员在「视频通道配置」中添加 RTSP 或 ONVIF。</p>
+            </div>
+
+            <div class="c-video-page" th:if="${!#lists.isEmpty(channels)}">
+                <aside class="c-video-tree">
+                    <input type="search" class="c-video-tree__search" id="camSearch" placeholder="请输入设备名称" autocomplete="off"/>
+                    <div id="camTreeList">
+                        <a href="#" class="c-video-tree__item" th:each="c, cStat : ${channels}"
+                           th:text="${c.name}"
+                           th:data-name="${c.name}"
+                           th:data-idx="${cStat.index}"
+                           th:classappend="${cStat.first} ? 'is-active'">设备</a>
+                    </div>
+                </aside>
+                <div class="c-video-main">
+                    <div class="c-video-toolbar">
+                        <button type="button" class="is-active" data-layout="1" title="单屏">单屏</button>
+                        <button type="button" data-layout="4" title="四屏">四屏</button>
+                        <button type="button" data-layout="9" title="九屏">九屏</button>
+                        <button type="button" id="btnFull" title="全屏">全屏</button>
+                    </div>
+                    <div id="videoGrid" class="c-video-grid c-video-grid--1">
+                        <div class="c-video-cell" th:each="idx : ${#numbers.sequence(0, 8)}">
+                            <th:block th:if="${idx < #lists.size(channels)}">
+                                <div class="c-video-cell__cap" th:text="${channels.get(idx).name}">名称</div>
+                                <img class="c-video-img" th:src="@{/video/mjpeg/{id}(id=${channels.get(idx).id})}"
+                                     th:alt="${channels.get(idx).name}" loading="lazy"/>
+                            </th:block>
+                            <th:block th:if="${idx >= #lists.size(channels)}">
+                                <div class="c-video-empty" th:text="${idx + 1}">1</div>
+                            </th:block>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:replace="fragments-console :: layout-scripts"></script>
+<script>
+(function () {
+    var grid = document.getElementById('videoGrid');
+    if (!grid) return;
+    document.querySelectorAll('.c-video-toolbar [data-layout]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.c-video-toolbar [data-layout]').forEach(function (b) { b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            var n = btn.getAttribute('data-layout');
+            grid.className = 'c-video-grid c-video-grid--' + (n === '4' ? '4' : n === '9' ? '9' : '1');
+        });
+    });
+    var search = document.getElementById('camSearch');
+    if (search) {
+        search.addEventListener('input', function () {
+            var q = (search.value || '').trim().toLowerCase();
+            document.querySelectorAll('#camTreeList .c-video-tree__item').forEach(function (a) {
+                var n = (a.getAttribute('data-name') || '').toLowerCase();
+                a.style.display = !q || n.indexOf(q) >= 0 ? 'block' : 'none';
+            });
+        });
+    }
+    document.querySelectorAll('#camTreeList .c-video-tree__item').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelectorAll('#camTreeList .c-video-tree__item').forEach(function (x) { x.classList.remove('is-active'); });
+            a.classList.add('is-active');
+        });
+    });
+    var bf = document.getElementById('btnFull');
+    if (bf) {
+        bf.addEventListener('click', function () {
+            var el = grid;
+            if (!document.fullscreenElement) {
+                (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen).call(el);
+            } else {
+                document.exitFullscreen();
+            }
+        });
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${kind == 'ALERT' ? '告警规则 · 盖斯特控制台' : '场景联动 · 盖斯特控制台'}">规则</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <h1 class="c-title" th:text="${kind == 'ALERT' ? '告警规则' : '场景联动（执行）'}">规则</h1>
+            <p class="c-sub" th:if="${kind == 'ALERT'}">当某设备上报的数值满足条件时，向钉钉 Webhook 发送文本消息，并累计设备告警次数。</p>
+            <p class="c-sub" th:if="${kind == 'LINKAGE'}">当条件满足时发送通知；不累计告警次数。可与「联动说明」中的剧本配合使用。</p>
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div class="c-card" sec:authorize="hasRole('ADMIN')">
+                <h2 class="c-card__title">新建规则</h2>
+                <form method="post" th:action="${kind == 'ALERT'} ? @{/alerts/rules} : @{/scenes/linkage}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <div class="c-form-row">
+                        <label>名称 *
+                            <input type="text" name="name" required placeholder="如：车间高温告警"/>
+                        </label>
+                        <label>设备编号（留空表示任意设备）
+                            <input type="text" name="deviceSn" placeholder="与遥测 deviceId 一致"/>
+                        </label>
+                        <label>指标字段 *
+                            <input type="text" name="metricKey" required placeholder="如 temp、hum"/>
+                        </label>
+                        <label>比较符
+                            <select name="operator">
+                                <option value="GT">大于 GT</option>
+                                <option value="LT">小于 LT</option>
+                                <option value="GE">大于等于 GE</option>
+                                <option value="LE">小于等于 LE</option>
+                                <option value="EQ">等于 EQ</option>
+                            </select>
+                        </label>
+                        <label>阈值 *
+                            <input type="number" name="threshold" step="any" required value="35"/>
+                        </label>
+                        <label>启用
+                            <select name="enabled">
+                                <option value="true" selected>是</option>
+                                <option value="false">否</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="c-form-row">
+                        <label>Webhook（钉钉机器人等，可空则使用全局兜底）
+                            <input type="text" name="webhookUrl" style="min-width:360px" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..."/>
+                        </label>
+                    </div>
+                    <button type="submit" class="c-btn c-btn--primary">保存</button>
+                </form>
+            </div>
+            <p class="c-muted" sec:authorize="!hasRole('ADMIN')">您为只读账号，无法新增或删除规则。</p>
+
+            <div class="c-card">
+                <h2 class="c-card__title">规则列表</h2>
+                <table class="c-table">
+                    <thead>
+                    <tr><th>名称</th><th>设备</th><th>指标</th><th>条件</th><th>启用</th><th sec:authorize="hasRole('ADMIN')">操作</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${rules}">
+                        <td th:text="${r.name}">-</td>
+                        <td th:text="${r.deviceSn != null && !#strings.isEmpty(r.deviceSn)} ? ${r.deviceSn} : '任意'">-</td>
+                        <td th:text="${r.metricKey}">-</td>
+                        <td th:text="${r.operator} + ' ' + ${r.threshold}">-</td>
+                        <td th:text="${r.enabled} ? '是' : '否'">-</td>
+                        <td sec:authorize="hasRole('ADMIN')">
+                            <form th:action="${kind == 'ALERT'} ? @{/alerts/rules/delete/{id}(id=${r.id})} : @{/scenes/linkage/delete/{id}(id=${r.id})}" method="post" style="display:inline" onsubmit="return confirm('确定删除？');">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="c-btn" style="padding:4px 10px;font-size:12px">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

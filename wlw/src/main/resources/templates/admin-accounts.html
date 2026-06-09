@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>账号管理 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">账号管理</h1>
+                <p class="c-sub"><strong>ADMIN</strong> 可管理设备与系统配置；<strong>USER</strong> 为只读，适合日常查看。新建账号将写入操作日志。</p>
+            </div>
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">新建账号</h2>
+                <form class="c-form-row" method="post" th:action="@{/admin/accounts}" style="flex-wrap:wrap;align-items:flex-end">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <label>用户名
+                        <input type="text" name="username" required autocomplete="off"/>
+                    </label>
+                    <label>密码（至少 6 位）
+                        <input type="password" name="password" required autocomplete="new-password"/>
+                    </label>
+                    <label>角色
+                        <select name="role">
+                            <option value="USER">USER（只读）</option>
+                            <option value="ADMIN">ADMIN</option>
+                        </select>
+                    </label>
+                    <button type="submit" class="c-btn c-btn--primary">创建</button>
+                </form>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">已有账号</h2>
+                <table class="c-table">
+                    <thead>
+                    <tr><th>ID</th><th>用户名</th><th>角色</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="acc : ${accounts}">
+                        <td th:text="${acc.id}">-</td>
+                        <td th:text="${acc.username}">-</td>
+                        <td><span class="c-pill" th:text="${acc.role}">USER</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

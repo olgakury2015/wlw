@@ -1,0 +1,47 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <title>数据接收与解析 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <h1 class="c-title">数据接收与解析</h1>
+            <p class="c-sub">平台从 HTTP / TCP / MQTT 等入口接收原始 JSON，在内存中解析为字段视图；同时每条上报会<strong>持久化</strong>到「时序存储」表，供历史查询与导出。</p>
+            <div class="c-card">
+                <h2 class="c-card__title">最近解析结果（内存缓冲）</h2>
+                <p class="c-card__hint">与首页「最近遥测」一致；刷新本页可更新。</p>
+                <div th:if="${#lists.isEmpty(recentDisplay)}" class="c-muted">暂无数据。</div>
+                <div class="c-tele-stack" th:if="${!#lists.isEmpty(recentDisplay)}">
+                    <article class="c-tele-card" th:each="row : ${recentDisplay}">
+                        <div class="c-tele-card__head">
+                            <span class="c-tele-card__time" th:text="${row.timeDisplay}">时间</span>
+                            <span class="c-tele-card__meta">
+                                协议 <strong th:text="${row.protocol}">-</strong>
+                                · 设备 <code th:text="${row.deviceId}">-</code>
+                            </span>
+                        </div>
+                        <table class="c-tele-kv" th:if="${!#lists.isEmpty(row.fields)}">
+                            <thead><tr><th>名称</th><th class="val">数值</th><th class="unit">单位</th></tr></thead>
+                            <tbody>
+                            <tr th:each="f : ${row.fields}">
+                                <th th:text="${f.name}">-</th>
+                                <td class="val" th:text="${f.value}">-</td>
+                                <td class="unit" th:text="${#strings.isEmpty(f.unit)} ? '—' : ${f.unit}">—</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </article>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

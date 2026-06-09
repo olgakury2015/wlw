@@ -1,0 +1,25 @@
+# 服务器部署：复制为与 wlw.jar 同级的 config/application-prod.yml，或任意路径后：
+#   java -jar wlw.jar --spring.profiles.active=prod --spring.config.additional-location=file:./config/
+#
+# 国标 media-host / ZLM sdp-ip：请在网页「视频中心 → 国标 28181」保存，写入 H2 数据库，不必写在本文件。
+# ZLM config.ini 建议将 [rtp_proxy] timeoutSec 调到 60，避免点播前等待过久导致端口被回收。
+
+server:
+  port: 9091
+
+spring:
+  datasource:
+    url: jdbc:h2:file:${WLW_DATA_DIR:/opt/wlw/data}/wlw-iot;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+
+iot:
+  video:
+    gb28181-use-zlm: true
+    gb28181-zlm-fallback: false
+    zlm:
+      enabled: true
+      http-host: 127.0.0.1
+      http-port: 88
+      secret: 你的ZLM-secret-与config.ini一致
+      config-ini: /opt/zlm/config.ini
+      sdp-ip:
+      rtsp-port: 554

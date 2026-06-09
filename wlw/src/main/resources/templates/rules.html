@@ -1,0 +1,70 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>联动说明 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <h1 class="c-title">联动说明</h1>
+            <p class="c-sub">在此登记场景与动作的<strong>文字说明</strong>，便于团队对齐剧本。真正按阈值自动执行请使用「场景联动（执行）」中的阈值规则（LINKAGE）。</p>
+
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div class="c-card" sec:authorize="hasRole('ADMIN')">
+                <h2 style="margin:0 0 12px;font-size:16px">新建说明</h2>
+                <form method="post" th:action="@{/rules}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <label style="display:block;margin-bottom:8px;font-size:12px;color:var(--muted)">名称 *
+                        <input type="text" name="name" required style="width:100%;max-width:480px" placeholder="例如：暗光自动开灯"/>
+                    </label>
+                    <label style="display:block;margin-bottom:8px;font-size:12px;color:var(--muted)">触发条件（描述）
+                        <input type="text" name="triggerSummary" style="width:100%;max-width:720px" placeholder="例如：光线 &lt; 50 lux"/>
+                    </label>
+                    <label style="display:block;margin-bottom:8px;font-size:12px;color:var(--muted)">执行动作（描述）
+                        <input type="text" name="actionSummary" style="width:100%;max-width:720px" placeholder="例如：下发开灯指令 / 调 Node-RED"/>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0">
+                        <input type="checkbox" name="enabled" value="true" checked/> 启用
+                    </label>
+                    <button type="submit" class="c-btn c-btn--primary">保存</button>
+                </form>
+            </div>
+            <p sec:authorize="!hasRole('ADMIN')" class="c-muted">只读用户可查看列表，不可编辑。</p>
+
+            <div class="c-card">
+                <h2 style="margin:0 0 12px;font-size:16px">列表</h2>
+                <table class="c-table" th:if="${!#lists.isEmpty(rules)}">
+                    <thead>
+                    <tr><th>名称</th><th>触发</th><th>动作</th><th>启用</th><th sec:authorize="hasRole('ADMIN')"></th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${rules}">
+                        <td th:text="${r.name}">-</td>
+                        <td th:text="${r.triggerSummary}">-</td>
+                        <td th:text="${r.actionSummary}">-</td>
+                        <td th:text="${r.enabled} ? '是' : '否'">是</td>
+                        <td sec:authorize="hasRole('ADMIN')">
+                            <form th:action="@{/rules/delete/{id}(id=${r.id})}" method="post" onsubmit="return confirm('删除该条？');" style="display:inline">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="c-btn" style="padding:4px 10px;font-size:12px">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${#lists.isEmpty(rules)}" class="c-muted">暂无记录。</p>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

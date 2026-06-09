@@ -1,0 +1,77 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>API 密钥 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">API 密钥</h1>
+                <p class="c-sub">
+                    为第三方应用生成密钥；调用开放接口时在请求头携带 <code>X-Api-Key: &lt;明文密钥&gt;</code>。
+                    当前实现：<strong>GET</strong> <code>/api/v1/telemetry/recent</code>（与登录用户权限一致，用于拉取最近遥测）。
+                </p>
+            </div>
+            <div th:if="${msg}" class="c-alert c-alert--ok">
+                <span th:text="${msg}"></span>
+                <span th:if="${newApiSecret != null}" style="display:block;margin-top:10px">
+                    <code style="font-size:13px;word-break:break-all" th:text="${newApiSecret}">secret</code>
+                </span>
+            </div>
+            <div class="c-card" sec:authorize="hasRole('ADMIN')">
+                <h2 class="c-card__title">新建密钥</h2>
+                <form class="c-form-row" method="post" th:action="@{/ops/api-keys}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <label>用途说明
+                        <input type="text" name="label" required placeholder="例如：小程序后端"/>
+                    </label>
+                    <button type="submit" class="c-btn c-btn--primary">生成</button>
+                </form>
+            </div>
+            <div class="c-card">
+                <h2 class="c-card__title">已有密钥</h2>
+                <div style="overflow-x:auto">
+                    <table class="c-table">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>说明</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>最后使用</th>
+                            <th sec:authorize="hasRole('ADMIN')">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="k : ${keys}">
+                            <td th:text="${k.id}">-</td>
+                            <td th:text="${k.label}">-</td>
+                            <td th:text="${k.enabled} ? '启用' : '已禁用'">-</td>
+                            <td th:text="${k.createdAt}">-</td>
+                            <td th:text="${k.lastUsedAt != null ? k.lastUsedAt : '—'}">-</td>
+                            <td sec:authorize="hasRole('ADMIN')">
+                                <form th:if="${k.enabled}" method="post" th:action="@{/ops/api-keys/disable}" style="display:inline" onsubmit="return confirm('禁用后该密钥将立即失效，确定？');">
+                                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                    <input type="hidden" name="id" th:value="${k.id}"/>
+                                    <button type="submit" class="c-btn" style="padding:4px 10px;font-size:12px">禁用</button>
+                                </form>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p th:if="${#lists.isEmpty(keys)}" class="c-muted" style="margin-top:12px">暂无密钥。</p>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="deviceLocationFields (note)">
+    <div class="c-device-loc" id="deviceLocationRoot">
+        <p class="c-muted" style="font-size:12px;margin:0 0 8px;line-height:1.55">
+            <strong>位置</strong>：先选省 / 市 / 区（默认使用内置区划数据；若配置 <code>iot.maps.gaode.web-service-key</code> 并勾选「行政区域查询」，则优先走高德并带行政区中心坐标），再在地图上点击精确定位；无需填写门牌。
+            手输经纬度时视为 WGS84（非地图选点）。
+            <span th:if="${osmMapConfigured}">当前地图为 <strong>OpenStreetMap</strong>（WGS84）。</span>
+        </p>
+        <div class="c-form-row c-device-loc__cascade" style="margin-bottom:10px;flex-wrap:wrap">
+            <label style="font-size:12px;color:var(--muted)">省 / 直辖市
+                <select id="dlProv" style="min-width:8rem">
+                    <option value="">— 请选择 —</option>
+                </select>
+            </label>
+            <label style="font-size:12px;color:var(--muted)">市
+                <select id="dlCity" style="min-width:8rem">
+                    <option value="">—</option>
+                </select>
+            </label>
+            <label style="font-size:12px;color:var(--muted)">区 / 县
+                <select id="dlDist" style="min-width:8rem">
+                    <option value="">—</option>
+                </select>
+            </label>
+        </div>
+        <p th:if="${!districtApiConfigured}" class="c-muted" style="font-size:12px;margin:0 0 8px">
+            省市区数据不可用（内置区划文件缺失且未配置高德 Web 服务 Key）；仍可用手输经纬度或地图选点。
+        </p>
+        <input type="hidden" name="districtPath" id="dlDistrictPath" value=""/>
+        <input type="hidden" name="manualCoordsGcj" id="dlManualGcj" value="false"/>
+        <div th:if="${mapJsConfigured}" id="deviceLocationMap" class="c-device-loc__map" aria-label="地图选点"></div>
+        <p th:if="${!mapJsConfigured}" class="c-muted c-device-loc__map c-device-loc__map--placeholder">
+            地图未启用：请将 <code>iot.maps.provider</code> 设为 <code>osm</code>，或配置高德 JS Key；也可仅手输经纬度。
+        </p>
+        <div class="c-form-row" style="margin-top:10px;margin-bottom:8px">
+            <label style="font-size:12px;color:var(--muted)">纬度（可选）
+                <input type="text" name="latitude" id="dlLat" inputmode="decimal" autocomplete="off" placeholder="地图或省市区自动填入"/>
+            </label>
+            <label style="font-size:12px;color:var(--muted)">经度（可选）
+                <input type="text" name="longitude" id="dlLng" inputmode="decimal" autocomplete="off"/>
+            </label>
+            <button type="button" class="c-btn c-btn--ghost" id="dlClearLoc" style="align-self:flex-end">清除位置</button>
+        </div>
+        <label class="c-address-field" style="display:block;margin-bottom:10px;font-size:12px;color:var(--muted)">位置备注（可选）
+            <input type="text" name="locationAddress" id="dlAddrNote" placeholder="楼栋、现场说明等；不参与解析" th:value="${note}"/>
+        </label>
+    </div>
+</th:block>
+
+<th:block th:fragment="deviceLocationScripts">
+    <th:block th:if="${osmMapConfigured}">
+        <th:block th:replace="fragments-map :: leafletScripts"></th:block>
+    </th:block>
+    <th:block th:if="${amapJsConfigured}">
+        <script th:inline="javascript">
+            /*<![CDATA[*/
+            window._AMapSecurityConfig = { securityJsCode: /*[[${gaodeSecurityJsCode}]]*/ '' };
+            window.WLW_DL = window.WLW_DL || {};
+            window.WLW_DL.mapProvider = 'gaode';
+            window.WLW_DL.districtUrl = /*[[@{/api/v1/management/china-districts}]]*/ '/api/v1/management/china-districts';
+            window.WLW_DL.geocodeUrl = /*[[@{/api/v1/management/geocode}]]*/ '/api/v1/management/geocode';
+            window.WLW_DL.hasDistrictApi = /*[[${districtApiConfigured}]]*/ false;
+            window.WLW_DL.hasMap = true;
+            window.WLW_DL.initLat = /*[[${locPickInitLat}]]*/ null;
+            window.WLW_DL.initLng = /*[[${locPickInitLng}]]*/ null;
+            window.WLW_DL.initGcj = /*[[${locPickInitGcj}]]*/ false;
+            window.WLW_DL.resizeOnModal = /*[[${locationPickerInModal}]]*/ false;
+            window.wlwDeviceLocMapCb = function () {
+                if (window.WlwDeviceLocationPicker) {
+                    window.WlwDeviceLocationPicker.onMapReady();
+                }
+            };
+            /*]]>*/
+        </script>
+        <script th:src="|https://webapi.amap.com/maps?v=2.0&key=${gaodeJsApiKey}&callback=wlwDeviceLocMapCb|"></script>
+    </th:block>
+    <script th:src="@{/js/device-location-picker.js}"></script>
+    <th:block th:if="${osmMapConfigured}">
+        <script th:inline="javascript">
+            /*<![CDATA[*/
+            window.WLW_DL = window.WLW_DL || {};
+            window.WLW_DL.mapProvider = 'osm';
+            window.WLW_DL.districtUrl = /*[[@{/api/v1/management/china-districts}]]*/ '/api/v1/management/china-districts';
+            window.WLW_DL.geocodeUrl = /*[[@{/api/v1/management/geocode}]]*/ '/api/v1/management/geocode';
+            window.WLW_DL.hasDistrictApi = /*[[${districtApiConfigured}]]*/ false;
+            window.WLW_DL.hasMap = true;
+            window.WLW_DL.initLat = /*[[${locPickInitLat}]]*/ null;
+            window.WLW_DL.initLng = /*[[${locPickInitLng}]]*/ null;
+            window.WLW_DL.initGcj = /*[[${locPickInitGcj}]]*/ false;
+            window.WLW_DL.resizeOnModal = /*[[${locationPickerInModal}]]*/ false;
+            /*]]>*/
+        </script>
+    </th:block>
+    <th:block th:if="${!mapJsConfigured}">
+        <script th:inline="javascript">
+            /*<![CDATA[*/
+            window.WLW_DL = window.WLW_DL || {};
+            window.WLW_DL.mapProvider = '';
+            window.WLW_DL.districtUrl = /*[[@{/api/v1/management/china-districts}]]*/ '/api/v1/management/china-districts';
+            window.WLW_DL.geocodeUrl = /*[[@{/api/v1/management/geocode}]]*/ '/api/v1/management/geocode';
+            window.WLW_DL.hasDistrictApi = /*[[${districtApiConfigured}]]*/ false;
+            window.WLW_DL.hasMap = false;
+            window.WLW_DL.initLat = /*[[${locPickInitLat}]]*/ null;
+            window.WLW_DL.initLng = /*[[${locPickInitLng}]]*/ null;
+            window.WLW_DL.initGcj = /*[[${locPickInitGcj}]]*/ false;
+            window.WLW_DL.resizeOnModal = /*[[${locationPickerInModal}]]*/ false;
+            /*]]>*/
+        </script>
+    </th:block>
+    <script>
+        (function () {
+            function start() {
+                if (!window.WlwDeviceLocationPicker) {
+                    return;
+                }
+                window.WlwDeviceLocationPicker.boot();
+                var dl = window.WLW_DL || {};
+                if (dl.hasMap && dl.mapProvider === 'osm') {
+                    window.WlwDeviceLocationPicker.onMapReady();
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', start);
+            } else {
+                start();
+            }
+        })();
+    </script>
+</th:block>
+</body>
+</html>

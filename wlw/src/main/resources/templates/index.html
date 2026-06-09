@@ -1,0 +1,402 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>首页 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+    <th:block th:if="${osmMapConfigured}" th:replace="fragments-map :: leafletHead"></th:block>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-home-hero">
+                <div>
+                    <div class="c-home-brand"><span class="c-home-brand__dot"></span><span>盖斯特控制台</span></div>
+                    <p class="c-home-tagline">设备接入 · 时序数据 · 告警与联动</p>
+                </div>
+                <div class="c-home-date" th:text="${todayDisplay}">日期</div>
+            </div>
+            <div class="c-page-head">
+                <h1 class="c-title">工作台</h1>
+                <p class="c-sub">设备、物模型、规则与数据模块总览；地图为
+                    <strong th:if="${osmMapConfigured}">OpenStreetMap</strong>
+                    <strong th:if="${amapJsConfigured}">高德地图</strong>
+                    <span th:if="${!mapJsConfigured}">未启用</span>
+                    <span th:if="${osmMapConfigured}">（<code>iot.maps.provider=osm</code>，免费 WGS84，适合商用）</span>
+                    <span th:if="${amapJsConfigured}">（需在配置中填写 Web 端 Key 与安全密钥）</span>。
+                </p>
+            </div>
+            <p class="c-refresh-hint" th:if="${pageAutoRefreshSeconds > 0}">
+                本页每 <strong th:text="${pageAutoRefreshSeconds}">10</strong> 秒<strong>自动刷新</strong>（<code>ui.page-auto-refresh-seconds</code>；设为 <code>0</code> 关闭）。
+            </p>
+
+            <div class="c-kpi-row">
+                <div class="c-kpi">
+                    <span>已注册设备</span>
+                    <strong th:text="${deviceCount}">0</strong>
+                    <a th:href="@{/devices}" style="font-size:13px;margin-top:8px;display:inline-block">管理设备 →</a>
+                </div>
+                <div class="c-kpi">
+                    <span>物模型</span>
+                    <strong th:text="${thingModelCount}">0</strong>
+                    <a th:href="@{/things}" style="font-size:13px;margin-top:8px;display:inline-block">物模型 →</a>
+                </div>
+                <div class="c-kpi">
+                    <span>场景规则</span>
+                    <strong th:text="${ruleCount}">0</strong>
+                    <a th:href="@{/rules}" style="font-size:13px;margin-top:8px;display:inline-block">规则引擎 →</a>
+                </div>
+                <div class="c-kpi">
+                    <span>WebSocket 会话</span>
+                    <strong th:text="${wsSessions}">0</strong>
+                    <span class="c-muted" style="font-size:12px;margin-top:8px;display:block">实时推送通道</span>
+                </div>
+            </div>
+
+            <div class="c-grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:16px;margin-bottom:18px">
+                <div class="c-card c-chart-card">
+                    <h2 class="c-card__title">设备在线占比</h2>
+                    <p class="c-card__hint" style="margin-top:0">基于设备表当前状态统计。</p>
+                    <canvas id="homeChartDoughnut" height="220"></canvas>
+                </div>
+                <div class="c-card c-chart-card">
+                    <h2 class="c-card__title">资源数量概览</h2>
+                    <p class="c-card__hint" style="margin-top:0">设备、物模型与联动说明条目数。</p>
+                    <canvas id="homeChartBar" height="220"></canvas>
+                </div>
+            </div>
+            <script type="application/json" id="home-doughnut-data" th:utext="${homeDoughnutJson}">{}</script>
+            <script type="application/json" id="home-bar-data" th:utext="${homeBarJson}">{}</script>
+
+            <div class="c-card c-map-wrap">
+                <h2 class="c-card__title">设备分布地图</h2>
+                <p class="c-card__hint" th:if="${mapJsConfigured && osmMapConfigured}">
+                    有经纬度的设备会显示标记；在线为强调色，离线为灰。底图为 OpenStreetMap 中文地名（WGS84）；若配置天地图 Key 则为中文标注 GCJ 底图。灰色块为个别瓦片未加载，会自动重试。
+                </p>
+                <p class="c-card__hint" th:if="${mapJsConfigured && amapJsConfigured}">
+                    有经纬度的设备会显示标记；在线为强调色，离线为灰。坐标若为 GPS/WGS84 会自动转为高德坐标系后打点。
+                </p>
+                <p class="c-card__hint" th:if="${!mapJsConfigured}">
+                    地图未启用：将 <code>iot.maps.provider</code> 设为 <code>osm</code>（免费），或配置高德 <code>js-api-key</code> 与 <code>security-js-code</code> 后刷新。
+                </p>
+                <div id="homeMap" class="c-map c-map--hero" role="application" aria-label="设备地图" th:if="${mapJsConfigured}"></div>
+                <div th:if="${!mapJsConfigured}" class="c-map c-map--hero c-muted" style="display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:14px;line-height:1.6">
+                    地图未加载：请在 <code>application.yml</code> 配置 <code>iot.maps.provider</code> 或高德 Key 后刷新。
+                </div>
+            </div>
+
+            <div class="c-grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+                <div class="c-card">
+                    <h2 class="c-card__title">最近遥测</h2>
+                    <p class="c-tele-hint">
+                        内存中最近若干条，已按字段展开。<strong>时间</strong>为平台收到时的本地时间。<br/>
+                        <strong>TCP_PULL</strong> 约每 <strong th:text="${tcpPullPollSeconds}">30</strong> 秒连接设备并拉取一行；脚本/设备也可作客户端连本平台的 <strong>TCP</strong> 端口 <strong th:text="${tcpPort}">9099</strong> 推送 JSON 行（<strong>TCP_PUSH</strong>）。<strong>HTTP</strong> 为主动 POST。<strong>MQTT</strong> 为设备向 Broker <strong>发布</strong>、平台连接 Broker <strong>订阅</strong>同一类上行主题。<br/>
+                        MQTT 接入 <strong th:text="${mqttEnabled ? '开' : '关'}">关</strong>
+                    </p>
+                    <div th:if="${#lists.isEmpty(recentDisplay)}" class="c-muted" style="padding:12px">暂无遥测数据。</div>
+                    <div class="c-tele-stack" th:if="${!#lists.isEmpty(recentDisplay)}">
+                        <article class="c-tele-card" th:each="row : ${recentDisplay}">
+                            <div class="c-tele-card__head">
+                                <span class="c-tele-card__time" th:text="${row.timeDisplay}">时间</span>
+                                <span class="c-tele-card__meta">
+                                    协议 <strong th:text="${row.protocol}">-</strong>
+                                    · 设备 <code th:text="${row.deviceId}">-</code>
+                                </span>
+                            </div>
+                            <table class="c-tele-kv" th:if="${!#lists.isEmpty(row.fields)}">
+                                <thead>
+                                <tr><th>名称</th><th class="val">数值</th><th class="unit">单位 / 说明</th></tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="f : ${row.fields}">
+                                    <th th:text="${f.name}">-</th>
+                                    <td class="val" th:text="${f.value}">-</td>
+                                    <td class="unit" th:text="${#strings.isEmpty(f.unit)} ? '—' : ${f.unit}">—</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                            <div th:if="${#lists.isEmpty(row.fields)}" class="c-muted" style="padding:10px 12px;font-size:13px">本条无结构化负载。</div>
+                        </article>
+                    </div>
+                </div>
+                <div class="c-card">
+                    <h2 class="c-card__title">快速演示</h2>
+                    <p class="c-muted" style="font-size:13px;margin:0 0 12px">写入一条 HTTP 遥测（需先创建设备编号 demo-sensor-1）。</p>
+                    <button type="button" class="c-btn c-btn--primary" id="demoBtn">发送演示遥测</button>
+                    <p id="demoStatus" class="c-muted" style="margin-top:10px;font-size:13px"></p>
+                    <h3 class="c-card__title" style="margin-top:16px;font-size:14px;color:var(--muted)">实时通道</h3>
+                    <pre id="wsLog" class="c-code" style="margin-top:0;max-height:200px;white-space:pre-wrap;word-break:break-word"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="application/json" id="wlw-map-pins" th:utext="${mapPinsJson}">[]</script>
+<th:block th:if="${amapJsConfigured}">
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    window._AMapSecurityConfig = {
+        securityJsCode: /*[[${gaodeSecurityJsCode}]]*/ ''
+    };
+    window.wlwHomeAmapInit = function () {
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/"/g, '&quot;');
+        }
+        var el = document.getElementById('wlw-map-pins');
+        var pins = [];
+        try {
+            pins = el && el.textContent ? JSON.parse(el.textContent) : [];
+        } catch (e) {
+            pins = [];
+        }
+        var map = new AMap.Map('homeMap', {
+            zoom: 4,
+            center: [105, 32],
+            viewMode: '2D'
+        });
+        var onlineColor = '#c45d3a';
+        var offlineColor = '#94a3b8';
+
+        function popupHtml(p) {
+            var name = p.name || p.deviceSn || '设备';
+            var sn = p.deviceSn || '';
+            var addr = p.address || '';
+            var isOn = (p.status === 'ONLINE');
+            var addrLine = addr ? '<div style="margin-top:6px;font-size:12px;color:#94a3b8">' + esc(addr) + '</div>' : '';
+            return '<div style="min-width:180px;font-size:13px;color:#1e1a16"><strong>' + esc(name) + '</strong><br/><span style="color:#64748b;font-size:12px">' + esc(sn) + '</span>' + addrLine + '<div style="margin-top:8px;font-size:12px;color:' + (isOn ? '#c45d3a' : '#64748b') + '">' + (isOn ? '在线' : '离线') + '</div></div>';
+        }
+
+        function addMarkers(gcjLngLats) {
+            var markers = [];
+            for (var i = 0; i < pins.length; i++) {
+                var p = pins[i];
+                var ll = gcjLngLats[i];
+                if (!ll) continue;
+                var isOn = (p.status === 'ONLINE');
+                var col = isOn ? onlineColor : offlineColor;
+                var m = new AMap.Marker({
+                    position: ll,
+                    map: map,
+                    content: '<div style="width:14px;height:14px;border-radius:50%;background:' + col + ';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15)"></div>',
+                    offset: new AMap.Pixel(-7, -7)
+                });
+                (function (marker, html) {
+                    marker.on('click', function () {
+                        new AMap.InfoWindow({
+                            content: html,
+                            offset: new AMap.Pixel(0, -12)
+                        }).open(map, marker.getPosition());
+                    });
+                })(m, popupHtml(p));
+                markers.push(m);
+            }
+            if (markers.length === 0) {
+                map.setZoomAndCenter(4, [105, 32]);
+            } else if (markers.length === 1) {
+                map.setZoomAndCenter(10, markers[0].getPosition());
+            } else {
+                map.setFitView(markers, false, [48, 48, 48, 48]);
+            }
+        }
+
+        var gcjList = [];
+        for (var j = 0; j < pins.length; j++) {
+            gcjList[j] = null;
+        }
+        var wgsIdx = [];
+        var wgsPairs = [];
+        for (var k = 0; k < pins.length; k++) {
+            var pk = pins[k];
+            if (typeof pk.lat !== 'number' || typeof pk.lng !== 'number') {
+                continue;
+            }
+            if (pk.gcj02 === true) {
+                gcjList[k] = [pk.lng, pk.lat];
+            } else {
+                wgsIdx.push(k);
+                wgsPairs.push([pk.lng, pk.lat]);
+            }
+        }
+        if (wgsPairs.length === 0) {
+            addMarkers(gcjList);
+            return;
+        }
+        function chunk(arr, size) {
+            var out = [];
+            for (var c = 0; c < arr.length; c += size) {
+                out.push(arr.slice(c, c + size));
+            }
+            return out;
+        }
+        function convertChunk(pairsSlice, cb) {
+            if (typeof AMap.convertFrom !== 'function') {
+                cb(null);
+                return;
+            }
+            AMap.convertFrom(pairsSlice, 'gps', function (status, result) {
+                if (result && result.info === 'ok' && result.locations) {
+                    cb(result.locations);
+                } else {
+                    cb(null);
+                }
+            });
+        }
+        var slices = chunk(wgsPairs, 40);
+        var allLoc = [];
+        var done = 0;
+        for (var s = 0; s < slices.length; s++) {
+            (function (sliceIndex) {
+                convertChunk(slices[sliceIndex], function (locs) {
+                    var base = sliceIndex * 40;
+                    for (var t = 0; t < slices[sliceIndex].length; t++) {
+                        var loc = locs && locs[t] ? locs[t] : new AMap.LngLat(slices[sliceIndex][t][0], slices[sliceIndex][t][1]);
+                        allLoc[base + t] = loc;
+                    }
+                    done++;
+                    if (done >= slices.length) {
+                        for (var v = 0; v < wgsIdx.length; v++) {
+                            gcjList[wgsIdx[v]] = allLoc[v];
+                        }
+                        addMarkers(gcjList);
+                    }
+                });
+            })(s);
+        }
+    };
+    /*]]>*/
+</script>
+<script th:src="|https://webapi.amap.com/maps?v=2.0&key=${gaodeJsApiKey}&callback=wlwHomeAmapInit|"></script>
+</th:block>
+<th:block th:if="${osmMapConfigured}">
+    <th:block th:replace="fragments-map :: leafletScripts"></th:block>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.WlwMapOsm) {
+                window.WlwMapOsm.homeMapInit();
+            }
+        });
+    </script>
+</th:block>
+<script th:inline="javascript">
+    (function () {
+        var wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+        var socket = new WebSocket(wsProto + '://' + location.host + '/ws/iot');
+        var logEl = document.getElementById('wsLog');
+        function appendWsLine(text) {
+            var t = (typeof text === 'string') ? text : String(text);
+            var block = '[' + new Date().toLocaleString() + '] ' + t;
+            try {
+                var o = JSON.parse(t);
+                if (o && o.type === 'telemetry') {
+                    var lines = [];
+                    lines.push('时间(推送): ' + (o.receivedAt || ''));
+                    lines.push('协议: ' + (o.protocol || '') + '  设备: ' + (o.deviceId || ''));
+                    var p = o.payload;
+                    if (p && typeof p === 'object') {
+                        lines.push('数据:');
+                        for (var k in p) {
+                            if (!Object.prototype.hasOwnProperty.call(p, k)) continue;
+                            var v = p[k];
+                            if (v && typeof v === 'object' && ('v' in v)) {
+                                lines.push('  · ' + k + ' = ' + v.v + (v.u ? (' ' + v.u) : ''));
+                            } else {
+                                lines.push('  · ' + k + ' = ' + JSON.stringify(v));
+                            }
+                        }
+                    }
+                    block = lines.join('\n');
+                }
+            } catch (ignore) {}
+            logEl.textContent = block + '\n\n' + logEl.textContent;
+        }
+        socket.onmessage = function (ev) {
+            appendWsLine(ev.data);
+        };
+        var btn = document.getElementById('demoBtn');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                var st = document.getElementById('demoStatus');
+                st.textContent = '发送中…';
+                fetch('/api/v1/telemetry', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        deviceId: 'demo-sensor-1',
+                        protocol: 'HTTP',
+                        payload: {temp: 24.6, hum: 51, ts: Date.now()}
+                    })
+                }).then(function (res) {
+                    st.textContent = res.ok ? '已写入。若存在编号为 demo-sensor-1 的设备，将显示在线。' : '失败：' + res.status;
+                }).catch(function (e) {
+                    st.textContent = String(e);
+                });
+            });
+        }
+    })();
+    var __refreshSec = /*[[${pageAutoRefreshSeconds}]]*/ 10;
+    if (__refreshSec > 0) {
+        setInterval(function () {
+            location.reload();
+        }, __refreshSec * 1000);
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    (function () {
+        function parseJsonEl(id) {
+            var el = document.getElementById(id);
+            if (!el) return {};
+            try {
+                return JSON.parse(el.textContent || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+        if (typeof Chart === 'undefined') return;
+        var d = parseJsonEl('home-doughnut-data');
+        var b = parseJsonEl('home-bar-data');
+        var c1 = document.getElementById('homeChartDoughnut');
+        if (c1 && d.labels && d.data) {
+            new Chart(c1, {
+                type: 'doughnut',
+                data: {
+                    labels: d.labels,
+                    datasets: [{
+                        data: d.data,
+                        backgroundColor: ['#c45d3a', '#94a3b8'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    plugins: {legend: {position: 'bottom'}},
+                    maintainAspectRatio: false
+                }
+            });
+        }
+        var c2 = document.getElementById('homeChartBar');
+        if (c2 && b.labels && b.data) {
+            new Chart(c2, {
+                type: 'bar',
+                data: {
+                    labels: b.labels,
+                    datasets: [{label: '数量', data: b.data, backgroundColor: '#c45d3a'}]
+                },
+                options: {
+                    plugins: {legend: {display: false}},
+                    scales: {y: {beginAtZero: true, ticks: {precision: 0}}},
+                    maintainAspectRatio: false
+                }
+            });
+        }
+    })();
+</script>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

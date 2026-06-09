@@ -1,0 +1,303 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>设备列表 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">设备列表</h1>
+                <p class="c-sub">
+                    在此筛选与查看设备；<strong>添加设备</strong>请通过右上角按钮在弹窗中完成（与列表分离）。管理员可<strong>修改</strong>设备档案。
+                </p>
+            </div>
+
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div class="c-card">
+                <div class="c-toolbar" style="justify-content:space-between">
+                    <form class="c-form-row" method="get" th:action="@{/devices}">
+                        <label>设备名称
+                            <input type="text" name="name" th:value="${qName}" placeholder="模糊搜索"/>
+                        </label>
+                        <label>设备编号
+                            <input type="text" name="sn" th:value="${qSn}" placeholder="模糊搜索"/>
+                        </label>
+                        <label>分类
+                            <select name="categoryId">
+                                <option value="" th:selected="${qCategoryId == null}">全部</option>
+                                <option th:each="c : ${categories}" th:value="${c.id}"
+                                        th:selected="${qCategoryId != null && qCategoryId == c.id}"
+                                        th:text="${c.name}">分类</option>
+                            </select>
+                        </label>
+                        <label>在线状态
+                            <select name="status">
+                                <option value="" th:selected="${qStatus == ''}">全部</option>
+                                <option value="ONLINE" th:selected="${qStatus == 'ONLINE'}">在线</option>
+                                <option value="OFFLINE" th:selected="${qStatus == 'OFFLINE'}">离线</option>
+                            </select>
+                        </label>
+                        <button type="submit" class="c-btn c-btn--primary">筛选</button>
+                        <a class="c-btn c-btn--ghost" th:href="@{/devices}">重置</a>
+                    </form>
+                    <div style="display:flex;gap:8px;flex-shrink:0" sec:authorize="hasRole('ADMIN')">
+                        <button type="button" class="c-btn c-btn--ghost" id="openAddGatewayModal">添加网关</button>
+                        <button type="button" class="c-btn c-btn--primary" id="openAddDeviceModal">添加设备</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="c-card" th:if="${!#lists.isEmpty(gateways)}">
+                <h2 class="c-card__title">工业网关</h2>
+                <p class="c-muted" style="font-size:13px;margin:0 0 12px">与传感器/PLC 分离建档；支持有人 USR-G781 等 DTU 的 TCP 透传、MQTT、HTTP、Modbus 等上行。</p>
+                <table class="c-table">
+                    <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>编号</th>
+                        <th>型号</th>
+                        <th>上行</th>
+                        <th>状态</th>
+                        <th>最后上报</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="g : ${gateways}">
+                        <td th:text="${g.name}">-</td>
+                        <td><code th:text="${g.gatewaySn}">-</code></td>
+                        <td th:text="${g.vendorModel}">-</td>
+                        <td th:text="${g.uplinkProtocol}">-</td>
+                        <td>
+                            <span class="c-badge c-badge--on" th:if="${g.status == 'ONLINE'}">在线</span>
+                            <span class="c-badge c-badge--off" th:if="${g.status != 'ONLINE'}">离线</span>
+                        </td>
+                        <td th:text="${g.lastSeenAt != null} ? ${g.lastSeenAt} : '—'">-</td>
+                        <td>
+                            <a th:href="@{/gateways/{id}(id=${g.id})}">详情</a>
+                            <a th:href="@{/gateways/{id}/edit(id=${g.id})}" style="margin-left:8px" sec:authorize="hasRole('ADMIN')">修改</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="c-muted" sec:authorize="!hasRole('ADMIN')">只读账号无法添加、修改或删除设备。</p>
+
+            <div class="c-card">
+                <h2 class="c-card__title">设备列表</h2>
+                <div th:if="${#lists.isEmpty(devices)}" class="c-muted">暂无数据。</div>
+                <table class="c-table" th:if="${!#lists.isEmpty(devices)}">
+                    <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>编号</th>
+                        <th>分类</th>
+                        <th>在线状态</th>
+                        <th>协议</th>
+                        <th>所属网关</th>
+                        <th>最后上报</th>
+                        <th>地址</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="d : ${devices}">
+                        <td th:text="${d.name}">-</td>
+                        <td><code th:text="${d.deviceSn}">-</code></td>
+                        <td th:text="${d.category != null} ? ${d.category.name} : '—'">-</td>
+                        <td>
+                            <span class="c-badge c-badge--on" th:if="${d.status == 'ONLINE'}">在线</span>
+                            <span class="c-badge c-badge--off" th:if="${d.status != 'ONLINE'}">离线</span>
+                        </td>
+                        <td th:text="${d.protocol}">-</td>
+                        <td style="font-size:12px" th:text="${d.gateway != null} ? ${d.gateway.name} : '—'">-</td>
+                        <td th:text="${d.lastSeenAt != null} ? ${d.lastSeenAt} : '—'">-</td>
+                        <td style="max-width:200px;font-size:12px" th:text="${d.locationAddress != null && !#strings.isEmpty(d.locationAddress)} ? ${d.locationAddress} : '—'">-</td>
+                        <td>
+                            <a th:href="@{/devices/{id}(id=${d.id})}">详情</a>
+                            <a th:href="@{/devices/{id}/edit(id=${d.id})}" sec:authorize="hasRole('ADMIN')" style="margin-left:8px">修改</a>
+                            <form th:action="@{/devices/delete/{id}(id=${d.id})}" method="post" style="display:inline;margin-left:8px" sec:authorize="hasRole('ADMIN')"
+                                  onsubmit="return confirm('确定删除？');">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="c-btn" style="padding:2px 8px;font-size:12px">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="addDeviceModal" class="c-modal" role="dialog" aria-modal="true" aria-labelledby="addDeviceModalTitle">
+    <div class="c-modal__panel c-modal__panel--md">
+        <div class="c-modal__head">
+            <h3 id="addDeviceModalTitle">添加设备</h3>
+            <button type="button" class="c-btn c-btn--ghost" id="closeAddDeviceModal" style="padding:4px 10px">关闭</button>
+        </div>
+        <form method="post" th:action="@{/devices}" id="deviceModalForm">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="c-form-row" style="margin-bottom:10px">
+                <label>名称 *
+                    <input type="text" name="name" required placeholder="例如：温湿度"/>
+                </label>
+                <label>设备编号 *
+                    <input type="text" name="deviceSn" required placeholder="与遥测 deviceId 一致"/>
+                </label>
+                <label>协议 *
+                    <select name="protocol" id="protocolSelect">
+                        <option value="MQTT">MQTT（设备发布 → 平台订阅 Broker）</option>
+                        <option value="HTTP">HTTP</option>
+                        <option value="TCP_PULL">TCP 拉取（平台连设备）</option>
+                        <option value="TCP_PUSH">TCP 推送（设备/脚本连平台）</option>
+                        <option value="MODBUS-TCP">MODBUS-TCP</option>
+                        <option value="MODBUS-RTU">MODBUS-RTU</option>
+                    </select>
+                </label>
+            </div>
+            <label style="display:block;margin-bottom:10px;font-size:12px;color:var(--muted)">设备分类
+                <select name="categoryId">
+                    <option value="">— 未分类 —</option>
+                    <option th:each="c : ${categories}" th:value="${c.id}" th:text="${c.name}">分类</option>
+                </select>
+            </label>
+            <label style="display:block;margin-bottom:10px;font-size:12px;color:var(--muted)">所属网关（经 DTU/路由器接入时选）
+                <select name="gatewayId">
+                    <option value="">— 直连平台 —</option>
+                    <option th:each="g : ${gateways}" th:value="${g.id}" th:text="${g.name + ' (' + g.gatewaySn + ')'}">网关</option>
+                </select>
+            </label>
+            <div id="tcpPullBlock" class="c-card c-card--nested" style="display:none">
+                <strong style="font-size:14px;color:var(--text)">TCP 采集参数</strong>
+                <div class="c-form-row" style="margin-top:8px">
+                    <label>设备 TCP 地址 *
+                        <input type="text" name="tcpRemoteHost" placeholder="192.168.0.200"/>
+                    </label>
+                    <label>端口 *
+                        <input type="number" name="tcpRemotePort" placeholder="8093" min="1" max="65535"/>
+                    </label>
+                    <label>返回类型 *
+                        <select name="tcpResponseType">
+                            <option value="JSON">JSON</option>
+                            <option value="TEXT">TEXT</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <div id="mqttBlock" class="c-card c-card--nested" style="display:none">
+                <strong style="font-size:14px;color:var(--text)">MQTT（平台按本设备信息连接 Broker 并订阅）</strong>
+                <p class="c-muted" style="font-size:12px;margin:8px 0 0;line-height:1.55">
+                    填写下面内容后，平台会为<strong>本设备</strong>单独建立订阅连接；留空则仅使用 <code>application.yml</code> 中全局 <code>iot.mqtt</code>。
+                    主机可填 IP（如 <code>119.45.1.168</code>）、<code>tcp://…</code>；填 <code>mqtt://…</code> 时后台会转为 Paho 所需的 <code>tcp://</code>。URI 未写端口时请填写下方端口（默认 1883）。Client ID 由平台自动生成，无需填写。
+                </p>
+                <div class="c-form-row" style="margin-top:10px">
+                    <label>Broker 主机 / URI
+                        <input type="text" name="mqttRemoteHost" placeholder="192.168.0.50 或 tcp://..."/>
+                    </label>
+                    <label>端口
+                        <input type="number" name="mqttRemotePort" placeholder="1883" min="1" max="65535"/>
+                    </label>
+                </div>
+                <label style="display:block;margin-top:8px">订阅主题 *
+                    <input type="text" name="mqttSubscribeTopic" placeholder="wlw/devices/+/telemetry" style="width:100%;max-width:520px"/>
+                </label>
+                <div class="c-form-row" style="margin-top:8px">
+                    <label>用户名（可选）
+                        <input type="text" name="mqttUsername" placeholder="无则留空"/>
+                    </label>
+                    <label>密码（可选）
+                        <input type="password" name="mqttPassword" placeholder="无则留空" autocomplete="new-password"/>
+                    </label>
+                </div>
+            </div>
+            <th:block th:with="addrNote=''" th:replace="fragments-device-location :: deviceLocationFields(${addrNote})"></th:block>
+            <div class="c-form-row" style="margin-bottom:10px">
+                <label>产品名称
+                    <input type="text" name="productName" placeholder="可选"/>
+                </label>
+                <label>机构名称
+                    <input type="text" name="orgName" placeholder="可选"/>
+                </label>
+            </div>
+            <div class="c-form-actions">
+                <button type="submit" class="c-btn c-btn--primary">注册设备</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="addGatewayModal" class="c-modal" role="dialog" aria-modal="true" aria-labelledby="addGatewayModalTitle">
+    <div class="c-modal__panel c-modal__panel--md">
+        <div class="c-modal__head">
+            <h3 id="addGatewayModalTitle">添加网关</h3>
+            <button type="button" class="c-btn c-btn--ghost" id="closeAddGatewayModal" style="padding:4px 10px">关闭</button>
+        </div>
+        <form method="post" th:action="@{/gateways}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div th:replace="fragments-gateway-form :: gatewayFields(null)"></div>
+            <div class="c-form-actions">
+                <button type="submit" class="c-btn c-btn--primary">注册网关</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<th:block th:replace="fragments-device-location :: deviceLocationScripts"></th:block>
+<script th:src="@{/js/gateway-form.js}"></script>
+<script>
+    (function () {
+        var sel = document.getElementById('protocolSelect');
+        var block = document.getElementById('tcpPullBlock');
+        var mqttBlock = document.getElementById('mqttBlock');
+        function sync() {
+            if (block && sel) block.style.display = (sel.value === 'TCP_PULL') ? 'block' : 'none';
+            if (mqttBlock && sel) mqttBlock.style.display = (sel.value === 'MQTT') ? 'block' : 'none';
+        }
+        if (sel) {
+            sel.addEventListener('change', sync);
+            sync();
+        }
+        var modal = document.getElementById('addDeviceModal');
+        var openBtn = document.getElementById('openAddDeviceModal');
+        var closeBtn = document.getElementById('closeAddDeviceModal');
+        function openM() { if (modal) modal.classList.add('is-open'); }
+        function closeM() { if (modal) modal.classList.remove('is-open'); }
+        if (openBtn) openBtn.addEventListener('click', openM);
+        if (closeBtn) closeBtn.addEventListener('click', closeM);
+        if (modal) {
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) closeM();
+            });
+        }
+        var gwModal = document.getElementById('addGatewayModal');
+        var openGw = document.getElementById('openAddGatewayModal');
+        var closeGw = document.getElementById('closeAddGatewayModal');
+        function openGwM() {
+            if (gwModal) gwModal.classList.add('is-open');
+            if (window.WlwGatewayForm) window.WlwGatewayForm.boot();
+        }
+        function closeGwM() { if (gwModal) gwModal.classList.remove('is-open'); }
+        if (openGw) openGw.addEventListener('click', openGwM);
+        if (closeGw) closeGw.addEventListener('click', closeGwM);
+        if (gwModal) {
+            gwModal.addEventListener('click', function (e) {
+                if (e.target === gwModal) closeGwM();
+            });
+        }
+        if (window.WlwGatewayForm) window.WlwGatewayForm.boot();
+    })();
+</script>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

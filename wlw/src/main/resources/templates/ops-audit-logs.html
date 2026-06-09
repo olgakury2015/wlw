@@ -1,0 +1,45 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>操作日志 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">操作日志</h1>
+                <p class="c-sub">记录控制台关键操作（设备增删、规则变更、通知配置、账号创建等），便于审计与问题追溯。以下为最近 200 条。</p>
+            </div>
+            <div class="c-card" style="overflow-x:auto">
+                <table class="c-table">
+                    <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>用户</th>
+                        <th>动作</th>
+                        <th>详情</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="e : ${logs}">
+                        <td th:text="${e.createdAt}">-</td>
+                        <td th:text="${e.username}">-</td>
+                        <td><code th:text="${e.action}">-</code></td>
+                        <td style="max-width:480px;word-break:break-word;font-size:12px" th:text="${e.detail}">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${#lists.isEmpty(logs)}" class="c-muted" style="margin:12px 0 0">暂无记录。</p>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

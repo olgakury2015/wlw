@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>可视化仪表板 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">可视化仪表板</h1>
+                <p class="c-sub">设备规模、在线率、实时通道与最新遥测一览。数据来自平台内存快照与设备表统计。</p>
+            </div>
+
+            <div class="c-dash">
+                <div class="c-dash__card">
+                    <p class="c-dash__label">设备总数</p>
+                    <p class="c-dash__value" th:text="${totalDevices}">0</p>
+                    <p class="c-dash__meta"><a th:href="@{/devices}">设备管理 →</a></p>
+                </div>
+                <div class="c-dash__card">
+                    <p class="c-dash__label">当前在线</p>
+                    <p class="c-dash__value" th:text="${onlineDevices}">0</p>
+                    <p class="c-dash__meta">有上报且已注册为在线</p>
+                </div>
+                <div class="c-dash__card">
+                    <p class="c-dash__label">在线率</p>
+                    <p class="c-dash__value"><span th:text="${onlineRate}">0</span>%</p>
+                    <p class="c-dash__meta" th:if="${totalDevices == 0}">暂无设备</p>
+                    <p class="c-dash__meta" th:if="${totalDevices > 0}">在线设备 / 总设备</p>
+                </div>
+                <div class="c-dash__card">
+                    <p class="c-dash__label">WebSocket 会话</p>
+                    <p class="c-dash__value" th:text="${wsSessions}">0</p>
+                    <p class="c-dash__meta">实时推送连接数</p>
+                </div>
+            </div>
+
+            <div class="c-dash" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+                <div class="c-dash__card">
+                    <p class="c-dash__label">物模型条目</p>
+                    <p class="c-dash__value" th:text="${thingModelCount}">0</p>
+                    <p class="c-dash__meta"><a th:href="@{/things}">物模型 →</a></p>
+                </div>
+                <div class="c-dash__card">
+                    <p class="c-dash__label">联动说明条数</p>
+                    <p class="c-dash__value" th:text="${sceneRuleCount}">0</p>
+                    <p class="c-dash__meta"><a th:href="@{/rules}">联动说明 →</a> · <a th:href="@{/scenes/linkage}">场景执行 →</a></p>
+                </div>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">最新遥测</h2>
+                <p class="c-tele-hint">与总览页相同数据源；以下为最近若干条结构化展示。</p>
+                <div th:if="${#lists.isEmpty(recentDisplay)}" class="c-muted" style="padding:12px">暂无遥测数据。</div>
+                <div class="c-tele-stack" th:if="${!#lists.isEmpty(recentDisplay)}" style="max-height:360px">
+                    <article class="c-tele-card" th:each="row : ${recentDisplay}">
+                        <div class="c-tele-card__head">
+                            <span class="c-tele-card__time" th:text="${row.timeDisplay}">时间</span>
+                            <span class="c-tele-card__meta">
+                                协议 <strong th:text="${row.protocol}">-</strong>
+                                · 设备 <code th:text="${row.deviceId}">-</code>
+                            </span>
+                        </div>
+                        <table class="c-tele-kv" th:if="${!#lists.isEmpty(row.fields)}">
+                            <thead>
+                            <tr><th>名称</th><th class="val">数值</th><th class="unit">单位</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="f : ${row.fields}">
+                                <th th:text="${f.name}">-</th>
+                                <td class="val" th:text="${f.value}">-</td>
+                                <td class="unit" th:text="${#strings.isEmpty(f.unit) ? '—' : f.unit}">—</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </article>
+                </div>
+            </div>
+
+            <div class="c-card c-card--note">
+                <h2 class="c-card__title">扩展</h2>
+                <p class="c-muted" style="margin:0">
+                    若需 GIS 大屏或 Grafana，可将外部 URL 嵌入独立页面；本平台已提供 <a th:href="@{/}">总览地图</a> 与
+                    <code>GET /api/v1/telemetry/recent</code> 供外部拉数。
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

@@ -1,0 +1,56 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <title>数据中心 · 时序查询 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <h1 class="c-title">数据中心 · 时序查询与导出</h1>
+            <p class="c-sub">按设备编号与时间范围查询已落库的遥测记录（最多 500 条展示）。支持导出 <strong>CSV</strong> 与 <strong>Excel（.xlsx）</strong>，便于报表分析。时间使用浏览器本地时区。</p>
+            <div class="c-card">
+                <h2 class="c-card__title">查询条件</h2>
+                <form class="c-form-row" method="get" th:action="@{/data/history}">
+                    <label>设备编号 *
+                        <input type="text" name="deviceSn" required th:value="${qDevice}" placeholder="与遥测 deviceId 一致"/>
+                    </label>
+                    <label>开始时间
+                        <input type="datetime-local" name="from" th:value="${qFromStr}"/>
+                    </label>
+                    <label>结束时间
+                        <input type="datetime-local" name="to" th:value="${qToStr}"/>
+                    </label>
+                    <button type="submit" class="c-btn c-btn--primary">查询</button>
+                    <a class="c-btn c-btn--ghost" th:if="${qDevice != null && !#strings.isEmpty(qDevice)}"
+                       th:href="@{/data/export.csv(deviceSn=${qDevice},from=${qFromStr},to=${qToStr})}">导出 CSV</a>
+                    <a class="c-btn c-btn--primary" th:if="${qDevice != null && !#strings.isEmpty(qDevice)}"
+                       th:href="@{/data/export.xlsx(deviceSn=${qDevice},from=${qFromStr},to=${qToStr})}">导出 Excel</a>
+                </form>
+            </div>
+            <div class="c-card" th:if="${qDevice != null && !#strings.isEmpty(qDevice)}">
+                <h2 class="c-card__title">查询结果</h2>
+                <div th:if="${#lists.isEmpty(historyRows)}" class="c-muted">该时间范围内无记录。</div>
+                <table class="c-table" th:if="${!#lists.isEmpty(historyRows)}">
+                    <thead>
+                    <tr><th>时间</th><th>协议</th><th>原始 JSON</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r : ${historyRows}">
+                        <td th:text="${r.receivedAt}">-</td>
+                        <td th:text="${r.protocol}">-</td>
+                        <td style="max-width:520px;word-break:break-all;font-size:12px" th:text="${r.payloadJson}">-</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

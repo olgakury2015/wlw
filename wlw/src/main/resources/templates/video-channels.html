@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>视频通道配置 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">视频通道配置</h1>
+                <p class="c-sub">维护 RTSP、ONVIF 或 <a th:href="@{/video/gb28181}">国标 GB28181</a> 通道；保存后可在 <a th:href="@{/video}">视频中心</a> 查看画面。
+                    列表「启用」可即时启停拉流；测国标时请<strong>停用</strong>同摄像机 RTSP 通道（如 id=4），避免海康限连与 RTP 丢包。</p>
+            </div>
+
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div class="c-card" style="margin-bottom:16px">
+                <h2 class="c-card__title">ONVIF 解析 RTSP（预览）</h2>
+                <p class="c-muted" style="font-size:13px;margin-top:0">填写设备服务地址（如 <code>http://192.168.1.64/onvif/device_service</code>）与凭据，提交后若成功将把 RTSP 填入下方「新建通道」表单，核对后再保存。</p>
+                <form class="c-form-row" style="flex-wrap:wrap;align-items:flex-end;gap:12px" method="post" th:action="@{/video/channels/onvif-resolve}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <label style="min-width:220px">设备服务 URL
+                        <input type="text" name="onvifDeviceServiceUrl" th:value="${prefillOnvifUrl}" placeholder="http://IP/onvif/device_service" style="width:100%;min-width:200px"/>
+                    </label>
+                    <label>用户名
+                        <input type="text" name="onvifUsername" th:value="${prefillOnvifUser}" placeholder="admin"/>
+                    </label>
+                    <label>密码
+                        <input type="password" name="onvifPassword" placeholder="设备密码"/>
+                    </label>
+                    <button type="submit" class="c-btn c-btn--primary">解析并预填</button>
+                </form>
+            </div>
+
+            <div class="c-card" style="margin-bottom:16px">
+                <h2 class="c-card__title">新建通道</h2>
+                <form class="c-form-row" style="flex-direction:column;align-items:stretch;gap:10px" method="post" th:action="@{/video/channels}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <label>名称 <input type="text" name="name" required placeholder="如：大门枪机"/></label>
+                    <label>接入方式
+                        <select name="sourceType" id="sourceTypeNew" style="max-width:200px">
+                            <option value="RTSP">RTSP 直连</option>
+                            <option value="ONVIF">ONVIF 解析</option>
+                            <option value="GB28181">GB/T 28181</option>
+                        </select>
+                    </label>
+                    <div id="gb28181FieldsNew" style="display:none">
+                        <label>国标设备编码（20 位 SIP 用户名）
+                            <input type="text" name="gb28181DeviceId" placeholder="34020000001320000001"/>
+                        </label>
+                        <label>国标通道编码（必填，与海康「视频通道编码 ID」一致）
+                            <input type="text" name="gb28181ChannelId" placeholder="34020000001320000003"/>
+                        </label>
+                        <label>国标 SIP 密码（明文，留空则用 <a th:href="@{/video/gb28181}">国标页</a> 平台默认密码）
+                            <input type="text" name="gb28181Password" autocomplete="off" placeholder="与摄像机 SIP 密码一致"/>
+                        </label>
+                        <label>码流索引
+                            <select name="gb28181StreamIndex" style="max-width:200px">
+                                <option value="0">0 — 主码流</option>
+                                <option value="1">1 — 子码流</option>
+                            </select>
+                        </label>
+                    </div>
+                    <label>RTSP 地址
+                        <input type="text" name="rtspUrl" th:value="${prefillRtsp}" placeholder="rtsp://user:pass@192.168.1.64:554/Streaming/Channels/101"/>
+                    </label>
+                    <label>ONVIF 设备服务 URL（可选，与 RTSP 二选一或同时填则优先 RTSP）
+                        <input type="text" name="onvifDeviceServiceUrl" placeholder="http://192.168.1.64/onvif/device_service"/>
+                    </label>
+                    <label>ONVIF 用户名 <input type="text" name="onvifUsername" placeholder="使用 ONVIF 解析时必填"/></label>
+                    <label>ONVIF 密码 <input type="password" name="onvifPassword"/></label>
+                    <label>排序 <input type="number" name="sortOrder" value="0" style="max-width:120px"/></label>
+                    <label class="c-form-row" style="gap:8px;align-items:center">
+                        <input type="checkbox" name="enabled" value="true" checked/> 启用（取消勾选则保存为禁用）
+                    </label>
+                    <label>备注 <textarea name="remark" rows="2" style="width:100%"></textarea></label>
+                    <button type="submit" class="c-btn c-btn--primary" style="align-self:flex-start">保存通道</button>
+                </form>
+            </div>
+
+            <div class="c-card">
+                <h2 class="c-card__title">已有通道</h2>
+                <div th:if="${#lists.isEmpty(channels)}" class="c-muted">暂无通道。</div>
+                <table class="c-table" th:if="${!#lists.isEmpty(channels)}">
+                    <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>接入</th>
+                        <th>RTSP / 国标</th>
+                        <th>ONVIF 服务</th>
+                        <th>排序</th>
+                        <th>启用</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="c : ${channels}">
+                        <td th:text="${c.name}">-</td>
+                        <td th:text="${c.sourceType != null} ? ${c.sourceType} : 'RTSP'">RTSP</td>
+                        <td style="max-width:220px;font-size:12px;word-break:break-all"
+                            th:text="${c.gb28181DeviceId != null} ? ('GB:' + ${c.gb28181DeviceId}) : (${c.rtspUrl != null} ? ${c.rtspUrl} : '—')">-</td>
+                        <td style="max-width:180px;font-size:12px;word-break:break-all" th:text="${c.onvifDeviceServiceUrl != null} ? ${c.onvifDeviceServiceUrl} : '—'">-</td>
+                        <td th:text="${c.sortOrder}">0</td>
+                        <td>
+                            <form th:action="@{/video/channels/{id}/enabled(id=${c.id})}" method="post"
+                                  class="channel-enable-form" style="display:inline">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <select name="enabled" class="channel-enable-select" title="切换后立即生效；停用将断开拉流"
+                                        onchange="this.form.submit()">
+                                    <option value="true" th:selected="${c.enabled}">启用</option>
+                                    <option value="false" th:selected="${!c.enabled}">停用</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            <a th:href="@{/video/channels/edit/{id}(id=${c.id})}">编辑</a>
+                            <form th:action="@{/video/channels/{id}/delete(id=${c.id})}" method="post" style="display:inline;margin-left:8px"
+                                  onsubmit="return confirm('确定删除该通道？');">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="c-btn" style="padding:2px 8px;font-size:12px">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:replace="fragments-console :: layout-scripts"></script>
+<script>
+(function () {
+    function bind(sel, box) {
+        var s = document.getElementById(sel);
+        var b = document.getElementById(box);
+        if (!s || !b) return;
+        function toggle() { b.style.display = s.value === 'GB28181' ? 'block' : 'none'; }
+        s.addEventListener('change', toggle);
+        toggle();
+    }
+    bind('sourceTypeNew', 'gb28181FieldsNew');
+})();
+</script>
+</body>
+</html>

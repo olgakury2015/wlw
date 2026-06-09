@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Leaflet 样式（仅 OSM 底图时引入） -->
+<th:block th:fragment="leafletHead">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+</th:block>
+
+<!-- Leaflet 脚本 + 平台地图工具（OSM） -->
+<th:block th:fragment="leafletScripts">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script th:src="@{/js/wlw-coord.js}"></script>
+    <script th:src="@{/js/wlw-map-osm.js}"></script>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        window.WLW_MAP_OSM = {
+            tileUrl: /*[[${osmTileUrl}]]*/ 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png',
+            attribution: /*[[${osmAttribution}]]*/ '&copy; OpenStreetMap',
+            tileFallbackUrls: /*[[${osmTileFallbackUrlsJson}]]*/ [],
+            tiandituTk: /*[[${osmTiandituTk}]]*/ '',
+            useGcjMap: /*[[${osmUseGcjMap}]]*/ false
+        };
+        /*]]>*/
+    </script>
+</th:block>
+</body>
+</html>

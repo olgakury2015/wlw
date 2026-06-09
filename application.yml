@@ -1,0 +1,178 @@
+server:
+  port: 9091
+  # MJPEG 长连接；避免 Tomcat 过早断开
+  tomcat:
+    connection-timeout: 600000
+
+spring:
+  mvc:
+    # 默认 30s 会导致 /video/mjpeg 每 30 秒断一次（浏览器黑屏）
+    async:
+      request-timeout: -1
+  application:
+    name: wlw-iot-platform
+  thymeleaf:
+    cache: false
+  datasource:
+    # JAR 部署：用环境变量 WLW_DATA_DIR 指定数据目录（如 /opt/wlw/data），国标 media-host 等存在此目录下 H2 库
+    url: jdbc:h2:file:${WLW_DATA_DIR:./data}/wlw-iot;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 2
+      connection-timeout: 20000
+      max-lifetime: 1800000
+  jpa:
+    # 关闭 OSIV，避免 /video/mjpeg 长连接占满连接池
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+iot:
+  # 地址 → 坐标（OpenStreetMap Nominatim，需外网；请设置可识别的 user-agent）
+  geocoding:
+    enabled: true
+    nominatim-base-url: https://nominatim.openstreetmap.org
+    user-agent: "WLW-IoT-Platform/1.0 (please-set-contact-in-yml)"
+  # 地图：osm = OpenStreetMap+Leaflet（免费、WGS84，商用友好）；gaode = 仅高德；auto = 有高德 Key 用高德否则 OSM
+  maps:
+    provider: osm
+    osm:
+      # 默认 osm-intl：中国区域地名多为中文；灰色块=部分瓦片加载失败（网络/限流），会自动重试
+      tile-url: https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png
+      tile-fallback-urls:
+        - https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png
+        - https://tile.openstreetmap.org/{z}/{x}/{y}.png
+      # 中文标注最佳：到 https://console.tianditu.gov.cn 申请浏览器端 Key 后填入（商用须遵守天地图协议）
+      tianditu-tk: "7fedd039814c11400f0384a906e00c1d"
+    gaode:
+      # ① 浏览器里用「JS API」做地图时：填「Web端(JS API)」Key + 安全密钥（provider=gaode 或 auto 且需高德时）
+      js-api-key: ""
+      security-js-code: ""
+      # ② 服务端「行政区域查询 / 地理编码」可选；留空则地址解析走下方 Nominatim（免费）
+      web-service-key: ""
+  # 设备作 TCP Server、平台主动连接拉取（如 MicroPython bind 8093）
+  device-tcp:
+    connect-timeout-ms: 5000
+    read-timeout-ms: 8000
+    poll-interval-ms: 30000
+    poll-enabled: true
+  tcp:
+    enabled: true
+    bind-host: 0.0.0.0
+    port: 9099
+    # 每行上报后回写 {"ok":true}，与 Python 脚本 send 后 recv 的用法兼容
+    send-line-ack: true
+  mqtt:
+    # 本机测试：先安装并启动 Mosquitto(1883)，再改为 true；无 Broker 时保持 false 以免启动报错
+    enabled: false
+    # 单 Broker 回退（当下方 brokers 为空时使用）
+    broker-url: tcp://127.0.0.1:1883
+    client-id: wlw-iot-platform
+    username: ""
+    password: ""
+    subscribe-topics:
+      - wlw/devices/+/telemetry
+    # 多 Broker：非空时优先，每项独立 id / broker-url / subscribe-topics（平台对每个 Broker 各建一连接并订阅）
+    # brokers:
+    #   - id: site-a
+    #     broker-url: tcp://192.168.0.50:1883
+    #     client-id: wlw-iot-platform
+    #     subscribe-topics:
+    #       - wlw/devices/+/telemetry
+    #   - id: site-b
+    #     broker-url: tcp://10.0.0.3:1883
+    #     client-id: wlw-iot-platform
+    #     subscribe-topics:
+    #       - factory/+/data
+    brokers: []
+    publish-topic-prefix: wlw/platform/
+    fanout-enabled: true
+    fanout-sub-topic-prefix: "telemetry/"
+    # 扇出到哪路 Broker；留空则用第一个已成功连接的连接
+    fanout-broker-id: ""
+  modbus-tcp:
+    default-host: 127.0.0.1
+    default-port: 502
+    default-unit-id: 1
+  video:
+    # 拉流引擎：ffmpeg | vlcj（需 64 位 VLC）| javacv
+    decoder: ffmpeg
+    # 若日志 ffmpeg 秒退，可填本机 ffmpeg.exe，例如 D:/tools/ffmpeg/bin/ffmpeg.exe
+    # 留空时会尝试 VLC 目录下的 ffmpeg.exe（与 vlc-path 同目录）
+    ffmpeg-path: /usr/bin/ffmpeg
+    # 国标 RTP 解码：auto | ffmpeg | javacv（none 无画面时可试 javacv 或配置 ffmpeg-path）
+    gb28181-decoder: ffmpeg
+    # 国标媒体：tcp_passive（海康国标页传输协议选 TCP）| udp
+    gb28181-media-transport: tcp_passive
+    # 国标失败且通道填了 RTSP 时，自动用 RTSP 出画（你这台海康 RTSP 已可用）
+    gb28181-rtsp-fallback: true
+    # 方案 B：国标收流走 ZLMediaKit（与 wvp 相同，需本机已启动 MediaServer）
+    gb28181-use-zlm: true
+    # 仅当 ZLM 不可用时回退本机 FFmpeg；secret 未配对前建议 false，避免与 ZLM 争用 30000
+    gb28181-zlm-fallback: false
+    zlm:
+      enabled: true
+      http-host: 127.0.0.1
+      # 与 ZLM config.ini [http] port 一致（你当前为 88，不是 80/7082）
+      http-port: 88
+      # 与 MediaServer 同目录 config.ini [api] secret 完全一致；修改 ini 后必须重启 ZLM
+      secret: 035c73f7-bb6b-4889-a715-d9eb2d1990000
+      config-ini: /opt/zlmediakit/conf/config.ini
+      # 可选：本机网卡 IP（云主机填内网 IP）；仅用于 ZLM openRtpServer 绑定，SDP 仍用网页 media-host
+      sdp-ip:
+      rtsp-port: 554
+    jpeg-quality: 0.72
+    # HEVC 主码流 1080p 压力大，建议摄像机填子码流 …/Channels/102
+    max-frame-width: 960
+    subscriber-idle-shutdown-seconds: 45
+    # 海康子码流可试 udp；若仍 -10054 会自动切 httpPreview
+    rtsp-transport: udp
+    open-timeout-ms: 15000
+    read-timeout-ms: 15000
+    mjpeg-min-interval-ms: 50
+    grab-interval-ms: 50
+    # 0=关闭定时切换，避免与海康单连接限制冲突
+    ffmpeg-handoff-interval-ms: 0
+    # VLCJ：勿设过短；此前 Math.max(30000,…) 会导致每 30s 重连黑屏
+    ffmpeg-stall-ms: 120000
+    video-no-frame-reconnect-ms: 120000
+    ffmpeg-min-reconnect-ms: 8000
+    ffmpeg-handoff-first-frame-ms: 10000
+    ffmpeg-hikvision-http-fallback: true
+    # VLC 根目录（须含 libvlc.dll；不是开始菜单目录）
+    # 开始菜单: C:\ProgramData\Microsoft\Windows\Start Menu\Programs\VideoLAN 仅为快捷方式
+    vlc-path: 
+    vlc-network-caching-ms: 500
+  # GB/T 28181：平台参数在控制台「国标 28181」页写入数据库；每路摄像机在「视频通道配置」维护
+  modbus-rtu:
+    enabled: false
+    port-name: COM3
+    baud-rate: 9600
+    data-bits: 8
+    stop-bits: 1
+    parity: NONE
+    unit-id: 1
+
+nodered:
+  base-url: http://127.0.0.1:1880
+  # Node-RED HTTP in 节点默认路径示例，可按你的 flow 修改
+  metrics-path: /wlw/metrics
+  rule-path: /wlw/rule
+
+logging:
+  level:
+    com.iot.platform: INFO
+
+# 页面自动刷新（整页重载，用于遥测/检测数据更新）
+ui:
+  page-auto-refresh-seconds: 10

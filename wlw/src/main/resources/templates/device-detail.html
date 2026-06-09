@@ -1,0 +1,400 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>设备详情 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+    <th:block th:if="${osmMapConfigured}" th:replace="fragments-map :: leafletHead"></th:block>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <p class="c-muted">
+                <a th:href="@{/devices}">← 返回设备列表</a>
+                <span sec:authorize="hasRole('ADMIN')"> · <a th:href="@{/devices/{id}/edit(id=${device.id})}">修改设备</a></span>
+            </p>
+
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <h1 class="c-title" th:text="${device.name}">设备</h1>
+            <p class="c-sub">设备编号 <code th:text="${device.deviceSn}">SN</code></p>
+            <p class="c-refresh-hint" th:if="${pageAutoRefreshSeconds > 0}">
+                本页每 <strong th:text="${pageAutoRefreshSeconds}">10</strong> 秒自动刷新；可在 <code>application.yml</code> 中修改 <code>ui.page-auto-refresh-seconds</code>。
+            </p>
+
+            <div class="c-detail-2col">
+                <div class="c-detail-main">
+                    <div class="c-card">
+                        <h2 style="margin:0 0 12px;font-size:16px">设备档案</h2>
+                        <table class="c-table">
+                            <tr><th>状态</th><td><span class="c-badge c-badge--on" th:if="${device.status == 'ONLINE'}">在线</span>
+                                <span class="c-badge c-badge--off" th:if="${device.status != 'ONLINE'}">离线</span>
+                                <span class="c-muted" style="font-size:12px;display:block;margin-top:6px;line-height:1.5"
+                                      th:if="${device.protocol == 'MQTT'}">
+                                    「在线」表示<strong>至少处理过一条</strong>匹配本设备编号的遥测；仅平台连上 Broker 或仅保存档案<strong>不会</strong>自动变在线。
+                                </span></td></tr>
+                            <tr><th>分类</th><td th:text="${device.category != null} ? ${device.category.name} : '—'">—</td></tr>
+                            <tr><th>所属网关</th>
+                                <td>
+                                    <span th:if="${device.gateway == null}" class="c-muted">— 直连平台 —</span>
+                                    <a th:if="${device.gateway != null}" th:href="@{/gateways/{id}(id=${device.gateway.id})}"
+                                       th:text="${device.gateway.name + ' (' + device.gateway.gatewaySn + ')'}">网关</a>
+                                </td>
+                            </tr>
+                            <tr><th>协议</th><td th:text="${device.protocol}">MQTT</td></tr>
+                            <tr th:if="${device.protocol == 'MQTT' && device.mqttRemoteHost != null && !#strings.isEmpty(device.mqttRemoteHost)}">
+                                <th>MQTT Broker</th>
+                                <td>
+                                    <code th:text="${device.mqttRemoteHost}">-</code>
+                                    <span th:if="${device.mqttRemotePort != null}"> :<span th:text="${device.mqttRemotePort}">1883</span></span>
+                                </td>
+                            </tr>
+                            <tr th:if="${device.protocol == 'MQTT' && device.mqttSubscribeTopic != null && !#strings.isEmpty(device.mqttSubscribeTopic)}">
+                                <th>MQTT 订阅主题</th><td><code th:text="${device.mqttSubscribeTopic}">-</code></td></tr>
+                            <tr th:if="${mqttPerDeviceConfigured}">
+                                <th>MQTT 独立订阅</th>
+                                <td>
+                                    <span class="c-badge c-badge--on" th:if="${mqttPerDeviceLinked}">本进程已连接 Broker</span>
+                                    <span class="c-badge c-badge--off" th:unless="${mqttPerDeviceLinked}">本进程未连接或已断开</span>
+                                    <span class="c-muted" style="font-size:12px;display:block;margin-top:6px">
+                                        若为「未连接」，请查控制台日志关键字 <code>MQTT[设备</code>（含连接失败原因）。连接成功但仍离线，请向主题发布消息；纯文本也会用档案设备编号关联，JSON 则勿把 <code>deviceId</code> 写成其它值。
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr th:if="${device.protocol == 'MQTT' && device.mqttUsername != null && !#strings.isEmpty(device.mqttUsername)}">
+                                <th>MQTT 用户名</th><td th:text="${device.mqttUsername}">-</td></tr>
+                            <tr th:if="${device.protocol == 'MQTT' && device.mqttPassword != null && !#strings.isEmpty(device.mqttPassword)}">
+                                <th>MQTT 密码</th><td class="c-muted">已保存（不显示）</td></tr>
+                            <tr th:if="${device.tcpRemoteHost != null}">
+                                <th>设备 TCP</th>
+                                <td th:text="${device.tcpRemoteHost} + ':' + ${device.tcpRemotePort}">-</td>
+                            </tr>
+                            <tr th:if="${device.tcpResponseType != null}">
+                                <th>返回类型</th><td th:text="${device.tcpResponseType}">JSON</td></tr>
+                            <tr><th>产品</th><td th:text="${#strings.isEmpty(device.productName)} ? '-' : ${device.productName}">-</td></tr>
+                            <tr><th>机构</th><td th:text="${#strings.isEmpty(device.orgName)} ? '-' : ${device.orgName}">-</td></tr>
+                            <tr><th>激活时间</th><td th:text="${device.activatedAt}">-</td></tr>
+                            <tr><th>最后上报</th><td th:text="${device.lastSeenAt != null} ? ${device.lastSeenAt} : '尚无上报'">-</td></tr>
+                            <tr><th>告警计数</th><td th:text="${device.alarmCount}">0</td></tr>
+                            <tr th:if="${device.locationAddress != null && !#strings.isEmpty(device.locationAddress)}">
+                                <th>安装地址</th>
+                                <td>
+                                    <span th:text="${device.locationAddress}">-</span>
+                                    <span class="c-muted" style="font-size:12px;margin-left:8px" th:if="${device.latitude != null && device.longitude != null}">（已解析，首页地图）</span>
+                                </td>
+                            </tr>
+                            <tr th:if="${device.locationAddress == null || #strings.isEmpty(device.locationAddress)}">
+                                <th>安装地址</th><td class="c-muted">未填写</td></tr>
+                        </table>
+                    </div>
+
+                    <div class="c-card">
+                        <h2 style="margin:0 0 8px;font-size:16px">设备位置</h2>
+                        <p class="c-muted" style="font-size:13px;margin:0 0 10px;line-height:1.55"
+                           th:if="${deviceDetailMapHasPoint && deviceDetailMapSource == 'gnrmc'}">
+                            来自<strong>最近一条遥测</strong>（MQTT / HTTP / TCP 等<strong>任意协议</strong>）中的 <code>$GNRMC</code> / <code>$GPRMC</code>（NMEA 已换算为 WGS84；地图与总览一致，非 GCJ 时做 GPS→高德纠偏）。
+                            平台在<strong>每次入库</strong>时若解析到定位句，会<strong>同步写回设备档案经纬度</strong>，之后无新定位则沿用该坐标，本页与首页地图均为最新。
+                        </p>
+                        <p class="c-muted" style="font-size:13px;margin:0 0 10px;line-height:1.55"
+                           th:if="${deviceDetailMapHasPoint && deviceDetailMapSource == 'archive'}">
+                            最近遥测中<strong>未解析到</strong>定位句子，使用<strong>设备档案</strong>中的经纬度（创建设备或编辑时：地图选点、手输坐标或地理编码写入的结果；与首页地图坐标系一致）。
+                        </p>
+                        <p class="c-muted" style="font-size:13px;margin:0 0 10px;line-height:1.55"
+                           th:if="${!deviceDetailMapHasPoint}">
+                            暂无可用坐标：任意协议的最近遥测中未找到有效的 <code>$GNRMC</code>/<code>$GPRMC</code>，且档案中未保存经纬度。可将 NMEA 句子放在上报 JSON 的字符串字段或原始 <code>body</code> 中；或在「修改设备」中填写位置/地图选点以写入档案。
+                        </p>
+                        <p class="c-muted" style="font-size:13px;margin:0 0 10px;line-height:1.55"
+                           th:if="${deviceDetailMapHasPoint && !mapJsConfigured}">
+                            已解析到坐标，但地图未启用。请将 <code>iot.maps.provider</code> 设为 <code>osm</code>，或配置高德 JS Key。
+                            <span th:if="${deviceDetailMapLat != null && deviceDetailMapLng != null}"
+                                  th:text="' 坐标约：' + ${deviceDetailMapLat} + ' , ' + ${deviceDetailMapLng} + '。'"></span>
+                        </p>
+                        <div id="deviceDetailMap" class="c-map c-map--sm" role="application" aria-label="设备位置"
+                             th:if="${mapJsConfigured && deviceDetailMapHasPoint}"></div>
+                    </div>
+
+                    <div class="c-card">
+                        <h2 style="margin:0 0 8px;font-size:16px">时序数据导出</h2>
+                        <p class="c-muted" style="font-size:13px;margin:0 0 12px;line-height:1.55">
+                            按时间范围导出该设备已落库遥测为 <strong>Excel（.xlsx）</strong>，与「数据中心 → 时序查询」使用同一导出接口。时间格式与查询页一致（本地时区）。
+                        </p>
+                        <div class="c-form-row" style="flex-wrap:wrap;align-items:flex-end;gap:10px">
+                            <label style="font-size:12px;color:var(--muted)">开始时间
+                                <input type="datetime-local" id="deviceExportFrom" th:value="${exportFromStr}"/>
+                            </label>
+                            <label style="font-size:12px;color:var(--muted)">结束时间
+                                <input type="datetime-local" id="deviceExportTo" th:value="${exportToStr}"/>
+                            </label>
+                            <button type="button" class="c-btn c-btn--primary" id="deviceExportExcelBtn">导出 Excel</button>
+                            <a class="c-btn c-btn--ghost" th:href="@{/data/history(deviceSn=${device.deviceSn})}">在数据中心查看</a>
+                        </div>
+                    </div>
+
+                    <div class="c-card c-chart-card">
+                        <h2 style="margin:0 0 8px;font-size:16px">最近数据趋势</h2>
+                        <p class="c-muted" style="font-size:13px;margin:0 0 12px">基于时序库近 48 小时内、最多 200 条上报解析的数值字段（折线）。无数据时不显示曲线。</p>
+                        <canvas id="deviceTelemetryChart" height="260"></canvas>
+                        <p id="deviceChartEmpty" class="c-muted" style="display:none;margin-top:8px">该时间范围内无时序数据，请先让设备上报或拉取成功。</p>
+                    </div>
+                </div>
+
+                <aside class="c-aside-live">
+                    <div class="c-aside-live__title">实时检测 · 遥测</div>
+
+                    <div th:if="${device.protocol == 'TCP_PULL'}">
+                        <div class="c-aside-sub">链路检测（平台能否连接设备并读到数据）</div>
+                        <div th:if="${device.linkCheckStatus == 'OK'}" class="c-aside-status c-aside-status--ok">已连接</div>
+                        <div th:if="${device.linkCheckStatus == 'FAIL'}" class="c-aside-status c-aside-status--fail">未连接</div>
+                        <div th:if="${device.linkCheckStatus == null || device.linkCheckStatus == 'UNKNOWN'}"
+                             class="c-aside-status c-aside-status--unk">未知</div>
+                        <p class="c-aside-time" th:if="${device.lastLinkCheckAt != null}"
+                           th:text="'最近检测时间：' + ${device.lastLinkCheckAt}">-</p>
+                        <p class="c-aside-msg" th:if="${device.lastLinkMessage != null}" th:text="${device.lastLinkMessage}">说明</p>
+                        <p class="c-aside-msg" th:if="${device.lastLinkMessage == null}" style="font-weight:500;color:#64748b">暂无说明</p>
+                        <div class="c-aside-actions" style="margin-bottom:22px" sec:authorize="hasRole('ADMIN')">
+                            <form th:action="@{/devices/{id}/probe(id=${device.id})}" method="post">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                <button type="submit" class="c-btn c-btn--primary">立即检测并拉取</button>
+                            </form>
+                        </div>
+                        <p class="c-muted" style="font-size:12px" sec:authorize="!hasRole('ADMIN')">只读用户不可触发检测。</p>
+                    </div>
+                    <div th:if="${device.protocol == 'TCP_PUSH' && iotTcp != null && iotTcp.enabled}" style="margin-bottom:18px">
+                        <p class="c-aside-sub" style="margin:0">TCP 推送（连平台）</p>
+                        <p class="c-aside-msg" style="font-size:13px;line-height:1.55">
+                            对端脚本作 TCP <strong>客户端</strong>，连接运行本平台的机器上可被访问的 IP 与端口
+                            <strong th:text="${iotTcp.port}">9099</strong>（<code>iot.tcp.port</code>），每行一条 UTF-8 JSON；
+                            字段 <code>device_id</code> 或 <code>deviceId</code> 与本页设备编号一致时会上线并入库。
+                        </p>
+                    </div>
+                    <div th:if="${device.protocol == 'MQTT'}" style="margin-bottom:18px">
+                        <p class="c-aside-sub" style="margin:0">MQTT 接入（平台 = 订阅者）</p>
+                        <p class="c-aside-msg" style="font-size:13px;line-height:1.55">
+                            若上方档案中填写了 <strong>MQTT Broker</strong> 与<strong>订阅主题</strong>，平台会<strong>按该配置单独连接</strong>并订阅；未填写时仅使用 <code>application.yml</code> 的 <code>iot.mqtt</code>（含多路 <code>brokers</code>）。
+                            本设备在固件中应作为<strong>发布者</strong>，向与你约定一致的主题发消息（常见 <code th:text="'wlw/devices/' + ${device.deviceSn} + '/telemetry'">…</code>）；负载中 <code>deviceId</code> / <code>device_id</code> 与本页设备编号一致。
+                            独立连接入库的遥测带 <code>mqttPerDevice=true</code>。
+                        </p>
+                        <div th:if="${iotMqtt != null && !iotMqtt.enabled}" class="c-muted" style="font-size:12px;margin-top:8px;line-height:1.55">
+                            <p th:if="${device.mqttRemoteHost != null && !#strings.isEmpty(device.mqttRemoteHost)}">
+                                当前 <code>iot.mqtt.enabled=false</code> 仅表示 <strong>yml 全局 MQTT</strong>未启用；本设备已填写 Broker 与订阅主题时，平台仍会<strong>按档案独立连接 Broker</strong>，与该开关无关。收不到数据时请查服务端日志是否出现 <code>MQTT[设备 …] 已连接</code> / <code>已订阅</code>，或 <code>连接失败</code> 及原因。
+                            </p>
+                            <p th:if="${device.mqttRemoteHost == null || #strings.isEmpty(device.mqttRemoteHost)}">
+                                当前 <code>iot.mqtt.enabled=false</code>，且本设备<strong>未</strong>配置独立 Broker，平台不会通过 MQTT 收数。请在档案填写 Broker + 订阅主题，或启用全局 <code>iot.mqtt</code>。
+                            </p>
+                        </div>
+                    </div>
+                    <div th:if="${device.protocol != 'TCP_PULL' && device.protocol != 'TCP_PUSH' && device.protocol != 'MQTT'}" style="margin-bottom:22px">
+                        <p class="c-aside-sub" style="margin:0">链路检测</p>
+                        <p class="c-aside-msg" style="font-size:16px;font-weight:500;color:#64748b">
+                            当前为「非 TCP 拉取」协议，无平台主动连接检测；设备上报遥测后可在下方查看数据。
+                        </p>
+                    </div>
+                    <div th:if="${device.protocol == 'TCP_PUSH'}" style="margin-bottom:22px">
+                        <p class="c-aside-sub" style="margin:0">链路检测</p>
+                        <p class="c-aside-msg" style="font-size:16px;font-weight:500;color:#64748b">
+                            TCP 推送无「平台主动探测」；对端成功连接并发送后，下方将显示最近遥测。
+                        </p>
+                    </div>
+                    <div th:if="${device.protocol == 'MQTT'}" style="margin-bottom:22px">
+                        <p class="c-aside-sub" style="margin:0">链路检测</p>
+                        <p class="c-aside-msg" style="font-size:16px;font-weight:500;color:#64748b">
+                            MQTT 无「平台主动拨测」。已配置独立订阅时，平台启动后即连 Broker 并订阅；设备向该主题 Publish、且消息内 <code>deviceId</code> / <code>device_id</code> 与档案设备编号一致时，下方会显示最近遥测。
+                        </p>
+                    </div>
+
+                    <div class="c-aside-tele" th:if="${lastTelemetryRow != null}">
+                        <div class="c-aside-sub" style="margin-top:4px">最近一条遥测（内存）</div>
+                        <p class="c-aside-time">
+                            收到时间 <strong th:text="${lastTelemetryRow.timeDisplay}">-</strong><br/>
+                            <span style="font-size:14px">协议 <strong th:text="${lastTelemetryRow.protocol}">-</strong>
+                            · 设备 <code th:text="${lastTelemetryRow.deviceId}">-</code></span>
+                        </p>
+                        <table class="c-tele-kv" th:if="${!#lists.isEmpty(lastTelemetryRow.fields)}">
+                            <thead>
+                            <tr><th>名称</th><th class="val">数值</th><th class="unit">单位</th></tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="f : ${lastTelemetryRow.fields}">
+                                <th th:text="${f.name}">-</th>
+                                <td class="val" th:text="${f.value}">-</td>
+                                <td class="unit" th:text="${#strings.isEmpty(f.unit) ? '—' : f.unit}">—</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div th:if="${lastTelemetryRow == null}" class="c-aside-tele">
+                        <p class="c-aside-msg" style="font-size:16px;color:#64748b;font-weight:500">
+                            暂无遥测缓存。TCP 拉取 / TCP 推送或 HTTP/MQTT 上报后将在此展示。
+                        </p>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="application/json" id="telemetry-chart-data" th:utext="${telemetryChartJson}">{}</script>
+<script type="application/json" id="device-detail-map-pin" th:utext="${deviceDetailMapPinJson}">{}</script>
+<th:block th:if="${amapJsConfigured && deviceDetailMapHasPoint}">
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    window._AMapSecurityConfig = {
+        securityJsCode: /*[[${gaodeSecurityJsCode}]]*/ ''
+    };
+    window.wlwDeviceDetailAmapInit = function () {
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/"/g, '&quot;');
+        }
+        var el = document.getElementById('device-detail-map-pin');
+        var pin = {};
+        try {
+            pin = el && el.textContent ? JSON.parse(el.textContent) : {};
+        } catch (e) {
+            pin = {};
+        }
+        var mapEl = document.getElementById('deviceDetailMap');
+        if (!mapEl || typeof pin.lat !== 'number' || typeof pin.lng !== 'number') {
+            return;
+        }
+        var map = new AMap.Map('deviceDetailMap', {
+            zoom: 15,
+            center: [pin.lng, pin.lat],
+            viewMode: '2D'
+        });
+        var title = pin.title || pin.deviceSn || '设备';
+        var sn = pin.deviceSn || '';
+        var html = '<div style="min-width:160px;font-size:13px;color:#1e1a16"><strong>' + esc(title) + '</strong>'
+            + (sn ? '<br/><span style="color:#64748b;font-size:12px">' + esc(sn) + '</span>' : '') + '</div>';
+        function placeMarker(lngLat) {
+            var m = new AMap.Marker({
+                position: lngLat,
+                map: map,
+                content: '<div style="width:16px;height:16px;border-radius:50%;background:#c45d3a;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>',
+                offset: new AMap.Pixel(-8, -8)
+            });
+            m.on('click', function () {
+                new AMap.InfoWindow({content: html, offset: new AMap.Pixel(0, -14)}).open(map, m.getPosition());
+            });
+            map.setZoomAndCenter(15, lngLat);
+        }
+        if (pin.gcj02 === true) {
+            placeMarker(new AMap.LngLat(pin.lng, pin.lat));
+            return;
+        }
+        if (typeof AMap.convertFrom !== 'function') {
+            placeMarker(new AMap.LngLat(pin.lng, pin.lat));
+            return;
+        }
+        // 经度、纬度须先写入变量再组数组；勿在脚本字面量里连续写两个左方括号（Thymeleaf 会当作内联表达式）。
+        var wgsPair = [pin.lng, pin.lat];
+        AMap.convertFrom([wgsPair], 'gps', function (status, result) {
+            var loc = (result && result.info === 'ok' && result.locations && result.locations[0])
+                ? result.locations[0] : new AMap.LngLat(pin.lng, pin.lat);
+            placeMarker(loc);
+        });
+    };
+    /*]]>*/
+</script>
+<script th:src="|https://webapi.amap.com/maps?v=2.0&key=${gaodeJsApiKey}&callback=wlwDeviceDetailAmapInit|"></script>
+</th:block>
+<th:block th:if="${osmMapConfigured && deviceDetailMapHasPoint}">
+    <th:block th:replace="fragments-map :: leafletScripts"></th:block>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (window.WlwMapOsm) {
+                window.WlwMapOsm.detailMapInit();
+            }
+        });
+    </script>
+</th:block>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    (function () {
+        var btn = document.getElementById('deviceExportExcelBtn');
+        if (!btn) return;
+        var deviceSn = /*[[${device.deviceSn}]]*/ '';
+        btn.addEventListener('click', function () {
+            var fromEl = document.getElementById('deviceExportFrom');
+            var toEl = document.getElementById('deviceExportTo');
+            var from = fromEl && fromEl.value ? fromEl.value : '';
+            var to = toEl && toEl.value ? toEl.value : '';
+            var q = 'deviceSn=' + encodeURIComponent(deviceSn)
+                + '&from=' + encodeURIComponent(from)
+                + '&to=' + encodeURIComponent(to);
+            window.location.href = /*[[@{/data/export.xlsx}]]*/ '/data/export.xlsx' + '?' + q;
+        });
+    })();
+    /*]]>*/
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    (function () {
+        var sec = /*[[${pageAutoRefreshSeconds}]]*/ 10;
+        if (sec > 0) {
+            setInterval(function () {
+                location.reload();
+            }, sec * 1000);
+        }
+    })();
+    (function () {
+        if (typeof Chart === 'undefined') return;
+        var el = document.getElementById('telemetry-chart-data');
+        var cfg = {};
+        try {
+            cfg = el && el.textContent ? JSON.parse(el.textContent) : {};
+        } catch (e) {
+            cfg = {};
+        }
+        var labels = cfg.labels || [];
+        var series = cfg.series || {};
+        var keys = Object.keys(series);
+        if (!labels.length || !keys.length) {
+            var empty = document.getElementById('deviceChartEmpty');
+            if (empty) empty.style.display = 'block';
+            return;
+        }
+        var colors = ['#c45d3a', '#6366f1', '#0d9488', '#ca8a04', '#9333ea', '#db2777'];
+        var datasets = [];
+        for (var i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            var arr = series[k] || [];
+            datasets.push({
+                label: k,
+                data: arr.map(function (v) { return v === null || typeof v === 'undefined' ? null : v; }),
+                borderColor: colors[i % colors.length],
+                backgroundColor: 'transparent',
+                tension: 0.25,
+                spanGaps: true,
+                fill: false
+            });
+        }
+        var canvas = document.getElementById('deviceTelemetryChart');
+        if (!canvas) return;
+        new Chart(canvas, {
+            type: 'line',
+            data: {labels: labels, datasets: datasets},
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {mode: 'index', intersect: false},
+                plugins: {legend: {position: 'bottom'}},
+                scales: {
+                    x: {ticks: {maxRotation: 45, minRotation: 0}},
+                    y: {beginAtZero: false}
+                }
+            }
+        });
+    })();
+    /*]]>*/
+</script>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

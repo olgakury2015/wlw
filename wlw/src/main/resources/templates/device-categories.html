@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>设备分类 · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <div class="c-page-head">
+                <h1 class="c-title">设备分类</h1>
+                <p class="c-sub">为设备打标签便于列表筛选；删除分类时，原归属设备的分类会被清空。</p>
+            </div>
+            <div th:if="${msg}" class="c-alert c-alert--ok" th:text="${msg}"></div>
+            <div th:if="${error}" class="c-alert c-alert--err" th:text="${error}"></div>
+
+            <div class="c-card" sec:authorize="hasRole('ADMIN')">
+                <h2 class="c-card__title">新建分类</h2>
+                <form class="c-form-row" method="post" th:action="@{/device-categories}" style="flex-wrap:wrap;align-items:flex-end">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <label>名称 *
+                        <input type="text" name="name" required placeholder="例如：环境监测"/>
+                    </label>
+                    <label>编码（可选）
+                        <input type="text" name="code" placeholder="英文简称"/>
+                    </label>
+                    <label>排序
+                        <input type="number" name="sortOrder" value="0"/>
+                    </label>
+                    <button type="submit" class="c-btn c-btn--primary">创建</button>
+                </form>
+            </div>
+            <p sec:authorize="!hasRole('ADMIN')" class="c-muted">只读账号可查看分类，不可增删改。</p>
+
+            <div class="c-card">
+                <h2 class="c-card__title">分类列表</h2>
+                <div style="overflow-x:auto">
+                    <table class="c-table">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>名称</th>
+                            <th>编码</th>
+                            <th>排序</th>
+                            <th>创建时间</th>
+                            <th sec:authorize="hasRole('ADMIN')">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <th:block th:each="c : ${categories}">
+                            <tr sec:authorize="hasRole('ADMIN')">
+                                <td th:text="${c.id}">-</td>
+                                <td colspan="4">
+                                    <p class="c-muted" style="font-size:11px;margin:0 0 6px" th:text="'创建于 ' + ${c.createdAt}">-</p>
+                                    <form method="post" th:action="@{/device-categories/{id}/update(id=${c.id})}" class="c-form-row" style="margin:0;flex-wrap:wrap;align-items:flex-end;gap:8px">
+                                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                        <label style="font-size:12px;color:var(--muted)">名称
+                                            <input type="text" name="name" required th:value="${c.name}" style="min-width:160px"/>
+                                        </label>
+                                        <label style="font-size:12px;color:var(--muted)">编码
+                                            <input type="text" name="code" th:value="${c.code}" style="min-width:120px"/>
+                                        </label>
+                                        <label style="font-size:12px;color:var(--muted)">排序
+                                            <input type="number" name="sortOrder" th:value="${c.sortOrder}" style="min-width:72px"/>
+                                        </label>
+                                        <button type="submit" class="c-btn c-btn--primary" style="padding:6px 14px;font-size:13px">保存</button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <form method="post" th:action="@{/device-categories/{id}/delete(id=${c.id})}" onsubmit="return confirm('删除该分类？');" style="display:inline">
+                                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                                        <button type="submit" class="c-btn" style="padding:4px 10px;font-size:12px">删除</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <tr sec:authorize="!hasRole('ADMIN')">
+                                <td th:text="${c.id}">-</td>
+                                <td th:text="${c.name}">-</td>
+                                <td th:text="${c.code != null && !#strings.isEmpty(c.code)} ? ${c.code} : '—'">-</td>
+                                <td th:text="${c.sortOrder}">0</td>
+                                <td th:text="${c.createdAt}">-</td>
+                            </tr>
+                        </th:block>
+                        </tbody>
+                    </table>
+                </div>
+                <p th:if="${#lists.isEmpty(categories)}" class="c-muted" style="margin-top:12px">暂无分类。</p>
+            </div>
+        </div>
+    </div>
+</div>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>

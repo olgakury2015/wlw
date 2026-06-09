@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<th:block th:fragment="gatewayFields (gw)">
+    <div class="c-form-row" style="margin-bottom:10px;flex-wrap:wrap">
+        <label>名称 *
+            <input type="text" name="name" required th:value="${gw != null} ? ${gw.name} : ''"/>
+        </label>
+        <label th:if="${gw == null}">网关编号 *
+            <input type="text" name="gatewaySn" required placeholder="与注册包一致，如 gw-factory-01"/>
+        </label>
+        <label th:if="${gw != null}">网关编号
+            <input type="text" th:value="${gw.gatewaySn}" disabled/>
+        </label>
+    </div>
+    <div class="c-form-row" style="margin-bottom:10px;flex-wrap:wrap">
+        <label>型号
+            <select name="vendorModel" id="gwVendorSelect">
+                <option th:each="v : ${gatewayVendors}" th:value="${v.name()}" th:text="${v.label}"
+                        th:selected="${gw != null && gw.vendorModel == v.name()}"></option>
+            </select>
+        </label>
+        <label>上行协议
+            <select name="uplinkProtocol" id="gwUplinkSelect">
+                <option th:each="u : ${gatewayUplinks}" th:value="${u.name()}" th:text="${u.label}"
+                        th:selected="${gw != null && gw.uplinkProtocol == u.name()}"></option>
+            </select>
+        </label>
+        <label>串口/DTU 模式
+            <select name="serialMode" id="gwSerialSelect">
+                <option th:each="s : ${gatewaySerialModes}" th:value="${s.name()}" th:text="${s.label}"
+                        th:selected="${gw != null && gw.serialMode == s.name()}"></option>
+            </select>
+        </label>
+    </div>
+    <div id="gwRemoteBlock" class="c-card c-card--nested" style="display:none;margin-bottom:10px">
+        <strong style="font-size:14px">网关地址（平台主动连接时）</strong>
+        <div class="c-form-row" style="margin-top:8px">
+            <label>IP / 主机
+                <input type="text" name="remoteHost" th:value="${gw != null} ? ${gw.remoteHost} : ''"/>
+            </label>
+            <label>端口
+                <input type="number" name="remotePort" min="1" max="65535"
+                       th:value="${gw != null && gw.remotePort != null} ? ${gw.remotePort} : ''"/>
+            </label>
+        </div>
+    </div>
+    <div id="gwMqttBlock" class="c-card c-card--nested" style="display:none;margin-bottom:10px">
+        <strong style="font-size:14px">MQTT（平台订阅 Broker）</strong>
+        <div class="c-form-row" style="margin-top:8px">
+            <label>Broker
+                <input type="text" name="mqttRemoteHost" th:value="${gw != null} ? ${gw.mqttRemoteHost} : ''"/>
+            </label>
+            <label>端口
+                <input type="number" name="mqttRemotePort" min="1" max="65535"
+                       th:value="${gw != null && gw.mqttRemotePort != null} ? ${gw.mqttRemotePort} : 1883"/>
+            </label>
+        </div>
+        <label style="display:block;margin-top:8px">订阅主题 *
+            <input type="text" name="mqttSubscribeTopic" style="width:100%;max-width:480px"
+                   th:value="${gw != null} ? ${gw.mqttSubscribeTopic} : ''"/>
+        </label>
+        <div class="c-form-row" style="margin-top:8px">
+            <label>用户名
+                <input type="text" name="mqttUsername" th:value="${gw != null} ? ${gw.mqttUsername} : ''"/>
+            </label>
+            <label>密码
+                <input type="password" name="mqttPassword" autocomplete="new-password"
+                       th:value="${gw != null} ? ${gw.mqttPassword} : ''"/>
+            </label>
+        </div>
+    </div>
+    <div class="c-form-row" style="margin-bottom:10px">
+        <label>注册包（USR-G781 特色功能，默认=编号）
+            <input type="text" name="registerPacket" th:value="${gw != null && gw.registerPacket != null} ? ${gw.registerPacket} : ''"/>
+        </label>
+        <label>心跳包（可选）
+            <input type="text" name="heartbeatPacket" th:value="${gw != null} ? ${gw.heartbeatPacket} : ''"/>
+        </label>
+    </div>
+    <label style="display:block;margin-bottom:10px;font-size:12px;color:var(--muted)">安装地址
+        <input type="text" name="locationAddress" style="width:100%;max-width:520px"
+               th:value="${gw != null} ? ${gw.locationAddress} : ''"/>
+    </label>
+    <label style="display:block;margin-bottom:10px;font-size:12px;color:var(--muted)">备注
+        <textarea name="remark" rows="2" style="width:100%;max-width:520px" th:text="${gw != null} ? ${gw.remark} : ''"></textarea>
+    </label>
+    <p class="c-muted" style="font-size:12px;margin:0" th:if="${platformTcpPort != null}">
+        TCP 客户端模式：网关连接平台 <strong th:text="${platformTcpPort}">9099</strong>，每行 JSON 含 <code>deviceId</code>、<code>gatewayId</code>。
+    </p>
+</th:block>
+</body>
+</html>

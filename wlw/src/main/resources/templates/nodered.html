@@ -1,0 +1,79 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Node-RED · 盖斯特控制台</title>
+    <link rel="stylesheet" th:href="@{/css/console.css}"/>
+</head>
+<body class="console-body">
+<div class="c-app">
+    <aside th:replace="fragments-console :: sidebar"></aside>
+    <div class="c-main">
+        <header th:replace="fragments-console :: topbar"></header>
+        <div class="c-content">
+            <h1 class="c-title">与 Node-RED 集成</h1>
+            <p class="c-sub">本页按钮仅作联调示例；请在 Node-RED 中创建对应的 <code>HTTP In</code> 路由。</p>
+            <p class="c-muted">当前配置：<code th:text="${nodeRed.baseUrl}">http://127.0.0.1:1880</code>
+                ，指标路径 <code th:text="${nodeRed.metricsPath}">/wlw/metrics</code>
+                ，规则路径 <code th:text="${nodeRed.rulePath}">/wlw/rule</code>。</p>
+
+            <div class="c-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">① Node-RED → Spring</h2>
+                    <p class="c-muted" style="font-size:13px">在 Node-RED 使用 <b>http request</b> 节点：<code>POST http://localhost:8080/api/v1/telemetry</code>。</p>
+                    <pre class="c-code" style="margin-top:8px">{
+  "deviceId": "nr-flow-1",
+  "protocol": "HTTP",
+  "payload": { "from": "node-red" }
+}</pre>
+                </div>
+                <div class="c-card">
+                    <h2 style="margin:0 0 8px;font-size:15px">② Spring → Node-RED</h2>
+                    <p class="c-muted" style="font-size:13px">下方按钮分别使用 <b>WebClient</b> 与 <b>RestTemplate</b> 访问你在 NR 暴露的端点。</p>
+                    <button class="c-btn c-btn--primary" type="button" id="btnMetrics">WebClient 拉取 metrics</button>
+                    <button class="c-btn" type="button" id="btnRule" style="margin-left:8px">RestTemplate 提交 rule</button>
+                    <pre id="nrOut" class="c-code" style="margin-top:12px"></pre>
+                </div>
+            </div>
+
+            <div class="c-card" style="margin-top:16px">
+                <h2 style="margin:0 0 8px;font-size:15px">③ WebSocket 双向实时</h2>
+                <p class="c-muted" style="font-size:13px">浏览器或 Node-RED（如 <code>websocket</code> 节点）连接 <code>/ws/iot</code>，服务端在收到遥测时会广播 JSON。</p>
+                <pre class="c-code">ws://localhost:8080/ws/iot</pre>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        var out = document.getElementById('nrOut');
+        document.getElementById('btnMetrics').addEventListener('click', function () {
+            out.textContent = '请求中…';
+            fetch('/api/v1/nodered/metrics').then(function (res) {
+                return res.text();
+            }).then(function (t) {
+                out.textContent = t;
+            }).catch(function (e) {
+                out.textContent = String(e);
+            });
+        });
+        document.getElementById('btnRule').addEventListener('click', function () {
+            out.textContent = '请求中…';
+            fetch('/api/v1/nodered/rule', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({source: 'wlw-ui', threshold: 30, action: 'notify'})
+            }).then(function (res) {
+                return res.text();
+            }).then(function (t) {
+                out.textContent = t;
+            }).catch(function (e) {
+                out.textContent = String(e);
+            });
+        });
+    })();
+</script>
+<th:block th:replace="fragments-console :: layout-scripts"></th:block>
+</body>
+</html>
